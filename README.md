@@ -1,4 +1,4 @@
-# Signal OPS — HawkOsint
+# Signal OPS
 
 A signals-intelligence and OSINT aggregation dashboard for **security research and educational purposes**. Signal OPS unifies dozens of public data sources — WiFi/Bluetooth/cell-tower databases, internet-exposure scanners, camera indexes, ADS-B flight feeds, satellite TLE tracking, and SDR/APRS networks — behind a single Flask API and map interface, with optional AI-assisted threat summaries.
 
