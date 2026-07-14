@@ -1,7 +1,6 @@
 # Signal OPS
-![SIGINT Map — satellite view](screenshots/sigint.png)
 
-A signals-intelligence and OSINT aggregation dashboard for **security research and educational purposes**. Signal OPS unifies dozens of public data sources — WiFi/Bluetooth/cell-tower databases, internet-exposure scanners, camera indexes, ADS-B flight feeds, satellite TLE tracking, and SDR/APRS networks — behind a single Flask API and map interface, with optional AI-assisted threat summaries.
+A full-spectrum, all-source signal intelligence fusion platform for security research and training. Signal OPS pulls dozens of open collection sources — WiFi/Bluetooth/cell-tower databases, internet-exposure scanners, camera indexes, ADS-B flight feeds, satellite TLE tracking, and SDR/APRS networks — into a single tactical map and Flask API, correlating the RF, cellular, airspace, orbital, and surveillance domains into one real-time operational picture, with optional AI-assisted threat summaries layered on top.
 
 > ⚠️ **Legal & ethical notice**
 > This tool is intended strictly for authorized security research, education, and analysis of data that is already publicly available through third-party APIs. You are responsible for complying with the terms of service of every API you enable, and with all applicable laws in your jurisdiction. Do **not** use it to access systems you don't own or aren't authorized to test, to surveil individuals, or for any unlawful purpose. The authors provide this software "as is," without warranty, and accept no liability for misuse.
