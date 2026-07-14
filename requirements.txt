@@ -1,0 +1,12 @@
+# Core (required)
+flask
+requests
+python-dotenv
+
+# Recommended (enable full functionality)
+cachetools        # bounded geo-cache; falls back to a plain dict if missing
+flask-limiter     # request rate limiting
+sgp4              # satellite propagation for /api/satellites
+
+# Optional — only needed for Gemini AI analysis
+google-genai
