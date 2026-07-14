@@ -257,7 +257,3 @@ A selection of the endpoints exposed (see the source for the full set):
 - Local datasets are optional but dramatically speed up camera/precinct lookups versus live Overpass queries.
 
 ---
-
-## License
-
-Add your license of choice here (for example, MIT). If you don't specify one, the code is "all rights reserved" by default.
