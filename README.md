@@ -49,9 +49,6 @@ The surveillance list scores each device (e.g. *"Suspicion 35/100: Unauthenticat
 | ![Cell towers](screenshots/cell-towers.png) | ![SDR / APRS](screenshots/sdr-aprs.png) |
 
 Cell-tower intelligence plots tower density with MCC/MNC operator lookup; the SDR view maps public KiwiSDR receivers and APRS stations with callsign lookup.
-
-> Screenshots live in the `screenshots/` folder. Replace or add images there and update the paths above to match.
-
 ---
 
 ## Requirements
