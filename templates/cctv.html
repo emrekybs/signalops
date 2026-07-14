@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+{% block title %}CCTV — Signal OPS{% endblock %}
+{% block extra_style %}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+.skeleton-card {
+  background: var(--s);
+  border: 1px solid var(--b);
+  border-radius: 8px;
+  padding: 18px;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+.skeleton-card .sk-img {
+  width: 100%; height: 140px;
+  background: linear-gradient(90deg, rgba(139,92,246,0.08) 0%, rgba(139,92,246,0.2) 50%, rgba(139,92,246,0.08) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s linear infinite;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+.skeleton-card .sk-line {
+  height: 10px;
+  background: rgba(139,92,246,0.12);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.src-pending { color: var(--tm); margin-right: 14px; }
+
+/* Camera preview fallback — shown when image fails to load (CORS/404/offline) */
+.cam-preview-wrap {
+  width: 100%;
+  height: 140px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  position: relative;
+  background: linear-gradient(135deg, #0F1014 0%, #1A1D22 100%);
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.cam-preview-wrap img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cam-preview-wrap .cam-fallback {
+  position: absolute; inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 6px;
+  color: var(--tm);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-align: center;
+  padding: 10px;
+}
+.cam-preview-wrap .cam-fallback .ico {
+  font-size: 32px;
+  opacity: 0.35;
+}
+.cam-preview-wrap.failed img        { display: none; }
+.cam-preview-wrap.failed .cam-fallback { display: flex; }
+{% endblock %}
+{% block content %}
+<div class="section-hdr">IP Camera Discovery</div>
+<div class="card" style="margin-bottom:16px">
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+
+    <div style="flex:1;min-width:220px">
+      <div style="font-size:10px;color:var(--tm);letter-spacing:2px;margin-bottom:6px">SEARCH</div>
+      <input id="cctv-q" placeholder="lat,lon  or  IP address  or  SSID">
+    </div>
+
+    <div>
+      <div style="font-size:10px;color:var(--tm);letter-spacing:2px;margin-bottom:6px">TYPE</div>
+      <select id="cctv-type" style="width:160px">
+        <option value="location">By Location (lat,lon)</option>
+        <option value="ip">By IP Address</option>
+        <option value="ssid">By SSID</option>
+        <option value="country">By Country</option>
+      </select>
+    </div>
+
+    <div>
+      <div style="font-size:10px;color:var(--tm);letter-spacing:2px;margin-bottom:6px">COUNTRY</div>
+      <select id="cctv-country" style="width:160px">
+        <option value="">All Countries</option>
+        <optgroup label="🌍 Europe">
+          <option value="TR">🇹🇷 Turkey</option>
+          <option value="RU">🇷🇺 Russia</option>
+          <option value="DE">🇩🇪 Germany</option>
+          <option value="FR">🇫🇷 France</option>
+          <option value="GB">🇬🇧 UK</option>
+          <option value="IT">🇮🇹 Italy</option>
+          <option value="ES">🇪🇸 Spain</option>
+          <option value="NL">🇳🇱 Netherlands</option>
+          <option value="PL">🇵🇱 Poland</option>
+          <option value="UA">🇺🇦 Ukraine</option>
+          <option value="SE">🇸🇪 Sweden</option>
+          <option value="NO">🇳🇴 Norway</option>
+          <option value="FI">🇫🇮 Finland</option>
+          <option value="DK">🇩🇰 Denmark</option>
+          <option value="CH">🇨🇭 Switzerland</option>
+          <option value="AT">🇦🇹 Austria</option>
+          <option value="BE">🇧🇪 Belgium</option>
+          <option value="PT">🇵🇹 Portugal</option>
+          <option value="GR">🇬🇷 Greece</option>
+          <option value="CZ">🇨🇿 Czech Republic</option>
+          <option value="SK">🇸🇰 Slovakia</option>
+          <option value="HU">🇭🇺 Hungary</option>
+          <option value="RO">🇷🇴 Romania</option>
+          <option value="BG">🇧🇬 Bulgaria</option>
+          <option value="HR">🇭🇷 Croatia</option>
+          <option value="RS">🇷🇸 Serbia</option>
+          <option value="LT">🇱🇹 Lithuania</option>
+          <option value="LV">🇱🇻 Latvia</option>
+          <option value="EE">🇪🇪 Estonia</option>
+          <option value="IE">🇮🇪 Ireland</option>
+          <option value="SI">🇸🇮 Slovenia</option>
+          <option value="AL">🇦🇱 Albania</option>
+          <option value="BA">🇧🇦 Bosnia</option>
+          <option value="MK">🇲🇰 N. Macedonia</option>
+          <option value="MD">🇲🇩 Moldova</option>
+          <option value="BY">🇧🇾 Belarus</option>
+          <option value="LU">🇱🇺 Luxembourg</option>
+        </optgroup>
+        <optgroup label="🌎 Americas">
+          <option value="US">🇺🇸 USA</option>
+          <option value="CA">🇨🇦 Canada</option>
+          <option value="BR">🇧🇷 Brazil</option>
+          <option value="MX">🇲🇽 Mexico</option>
+          <option value="AR">🇦🇷 Argentina</option>
+          <option value="CL">🇨🇱 Chile</option>
+          <option value="CO">🇨🇴 Colombia</option>
+          <option value="PE">🇵🇪 Peru</option>
+          <option value="VE">🇻🇪 Venezuela</option>
+          <option value="EC">🇪🇨 Ecuador</option>
+          <option value="BO">🇧🇴 Bolivia</option>
+          <option value="PY">🇵🇾 Paraguay</option>
+          <option value="UY">🇺🇾 Uruguay</option>
+          <option value="CU">🇨🇺 Cuba</option>
+          <option value="DO">🇩🇴 Dominican Rep.</option>
+        </optgroup>
+        <optgroup label="🌏 Asia">
+          <option value="CN">🇨🇳 China</option>
+          <option value="JP">🇯🇵 Japan</option>
+          <option value="KR">🇰🇷 South Korea</option>
+          <option value="IN">🇮🇳 India</option>
+          <option value="ID">🇮🇩 Indonesia</option>
+          <option value="PK">🇵🇰 Pakistan</option>
+          <option value="BD">🇧🇩 Bangladesh</option>
+          <option value="VN">🇻🇳 Vietnam</option>
+          <option value="TH">🇹🇭 Thailand</option>
+          <option value="PH">🇵🇭 Philippines</option>
+          <option value="MY">🇲🇾 Malaysia</option>
+          <option value="SG">🇸🇬 Singapore</option>
+          <option value="HK">🇭🇰 Hong Kong</option>
+          <option value="TW">🇹🇼 Taiwan</option>
+          <option value="MM">🇲🇲 Myanmar</option>
+          <option value="KH">🇰🇭 Cambodia</option>
+          <option value="LK">🇱🇰 Sri Lanka</option>
+          <option value="NP">🇳🇵 Nepal</option>
+          <option value="KZ">🇰🇿 Kazakhstan</option>
+          <option value="UZ">🇺🇿 Uzbekistan</option>
+          <option value="AZ">🇦🇿 Azerbaijan</option>
+          <option value="GE">🇬🇪 Georgia</option>
+          <option value="AM">🇦🇲 Armenia</option>
+          <option value="MN">🇲🇳 Mongolia</option>
+        </optgroup>
+        <optgroup label="🕌 Middle East">
+          <option value="IR">🇮🇷 Iran</option>
+          <option value="IQ">🇮🇶 Iraq</option>
+          <option value="SA">🇸🇦 Saudi Arabia</option>
+          <option value="AE">🇦🇪 UAE</option>
+          <option value="IL">🇮🇱 Israel</option>
+          <option value="JO">🇯🇴 Jordan</option>
+          <option value="LB">🇱🇧 Lebanon</option>
+          <option value="SY">🇸🇾 Syria</option>
+          <option value="YE">🇾🇪 Yemen</option>
+          <option value="KW">🇰🇼 Kuwait</option>
+          <option value="QA">🇶🇦 Qatar</option>
+          <option value="BH">🇧🇭 Bahrain</option>
+          <option value="OM">🇴🇲 Oman</option>
+        </optgroup>
+        <optgroup label="🌍 Africa">
+          <option value="ZA">🇿🇦 South Africa</option>
+          <option value="NG">🇳🇬 Nigeria</option>
+          <option value="EG">🇪🇬 Egypt</option>
+          <option value="KE">🇰🇪 Kenya</option>
+          <option value="ET">🇪🇹 Ethiopia</option>
+          <option value="GH">🇬🇭 Ghana</option>
+          <option value="TZ">🇹🇿 Tanzania</option>
+          <option value="MA">🇲🇦 Morocco</option>
+          <option value="DZ">🇩🇿 Algeria</option>
+          <option value="TN">🇹🇳 Tunisia</option>
+          <option value="LY">🇱🇾 Libya</option>
+          <option value="SD">🇸🇩 Sudan</option>
+          <option value="CM">🇨🇲 Cameroon</option>
+          <option value="SN">🇸🇳 Senegal</option>
+          <option value="CI">🇨🇮 Ivory Coast</option>
+        </optgroup>
+        <optgroup label="🌊 Oceania">
+          <option value="AU">🇦🇺 Australia</option>
+          <option value="NZ">🇳🇿 New Zealand</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-p" onclick="cctvSearch()">🔍 SEARCH</button>
+      <button class="btn btn-g" onclick="cctvGeo()">📍 My Area</button>
+      <button class="btn btn-outline" onclick="exportCameras()" style="padding:8px 12px">⬇ JSON</button>
+    </div>
+  </div>
+</div>
+
+<div id="cctv-gemini" style="display:none;border-color:rgba(139,92,246,0.3);margin-bottom:16px" class="card">
+  <div style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:var(--pl);margin-bottom:10px">🤖 GEMINI CAMERA INTEL</div>
+  <div id="cctv-gem-text" style="font-size:12px;color:var(--td);line-height:1.8;white-space:pre-wrap"></div>
+</div>
+
+<div id="cam-stats" style="display:none;margin-bottom:12px">
+  <div id="cam-stat-badges" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+</div>
+
+<div id="cctv-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
+
+<div id="cctv-empty" style="text-align:center;padding:80px;color:var(--tm)">
+  <div style="font-size:40px;margin-bottom:12px;opacity:0.2">📹</div>
+  <div style="font-family:'Rajdhani',sans-serif;letter-spacing:3px">SEARCH FOR CAMERAS</div>
+  <div style="font-size:11px;margin-top:8px;color:var(--tm)">Shodan · ZoomEye · FOFA · BinaryEdge · CriminalIP · Windy · OSM · Insecam · EarthCam</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allCameras = [];
+
+async function cctvGeo(){
+  if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(p=>{
+    document.getElementById('cctv-q').value = `${p.coords.latitude.toFixed(4)},${p.coords.longitude.toFixed(4)}`;
+    document.getElementById('cctv-type').value = 'location';
+    cctvSearch();
+  });
+}
+
+async function cctvSearch(){
+  const q       = document.getElementById('cctv-q').value.trim();
+  const type    = document.getElementById('cctv-type').value;
+  const country = document.getElementById('cctv-country').value;
+
+  if(!q && !country){
+    alert('Enter location or select country');
+    return;
+  }
+  if(type === 'country' && !country){
+    alert('Please select a country');
+    return;
+  }
+
+  const grid  = document.getElementById('cctv-grid');
+  const empty = document.getElementById('cctv-empty');
+  grid.innerHTML = '';
+  empty.style.display = 'none';
+  document.getElementById('cctv-gemini').style.display = 'none';
+  document.getElementById('cam-stats').style.display   = 'none';
+
+  // Show animated loading state with source list + skeleton cards
+  const sources = type === 'country'
+    ? ['Shodan', 'Insecam', 'EarthCam', 'OpenStreetMap']
+    : ['Shodan', 'FOFA', 'BinaryEdge', 'Windy', 'OSM', 'Insecam'];
+
+  const skeletonCards = Array.from({length: 6}, () => `
+    <div class="skeleton-card">
+      <div class="sk-img"></div>
+      <div class="sk-line" style="width:70%"></div>
+      <div class="sk-line" style="width:40%"></div>
+      <div class="sk-line" style="width:55%"></div>
+    </div>`).join('');
+
+  grid.innerHTML = `
+    <div style="grid-column:1/-1;text-align:center;padding:24px 0;margin-bottom:12px;
+                background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.25);
+                border-radius:8px">
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px">
+        <div style="width:20px;height:20px;border:2px solid var(--p);border-top-color:transparent;
+                    border-radius:50%;animation:spin 0.8s linear infinite"></div>
+        <span style="font-family:'Rajdhani',sans-serif;letter-spacing:2.5px;
+                     color:var(--pl);font-weight:700;font-size:14px">
+          SCANNING ${type === 'country' ? 'COUNTRY' : 'AREA'}
+        </span>
+      </div>
+      <div id="scan-sources" style="font-size:10px;color:var(--tm);letter-spacing:1px;
+                                     font-family:'JetBrains Mono',monospace">
+        ${sources.map(s => `<span class="src-pending">◌ ${s}</span>`).join(' · ')}
+      </div>
+    </div>
+    ${skeletonCards}
+  `;
+
+  // Simulate sequential source progress so user sees movement (real fetches run in parallel,
+  // but showing ticks one-by-one feels more alive than a static spinner)
+  let tickedSources = 0;
+  const tickInterval = setInterval(() => {
+    if (tickedSources >= sources.length) { clearInterval(tickInterval); return; }
+    const el = document.getElementById('scan-sources');
+    if (!el) { clearInterval(tickInterval); return; }
+    const spans = el.querySelectorAll('span');
+    if (spans[tickedSources]) {
+      spans[tickedSources].innerHTML = `<span style="color:#4ADE80">✓</span> ${sources[tickedSources]}`;
+    }
+    tickedSources++;
+  }, 2500);
+
+  try {
+    let url;
+    if(type === 'location'){
+      const parts = q.split(',');
+      url = `/api/cctv?lat=${encodeURIComponent(parts[0].trim())}&lon=${encodeURIComponent(parts[1].trim())}` +
+            (country ? `&country=${country}` : '');
+    } else if(type === 'country'){
+      url = `/api/cctv?country=${country}`;
+    } else {
+      url = `/api/search?type=${type}&query=${encodeURIComponent(q)}`;
+    }
+
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    // Stop the source-tick animation — real data is here
+    clearInterval(tickInterval);
+
+    if(type === 'location' || type === 'country'){
+      allCameras = data.cameras || [];
+    } else {
+      allCameras = (data.devices || []).filter(d =>
+        ['camera','dashcam','iot_device'].includes(d.type) || d.port==554 || d.port==8080
+      );
+    }
+
+    renderCameras();
+
+    if((type === 'location' || type === 'country') && data.analysis){
+      document.getElementById('cctv-gem-text').textContent = data.analysis;
+      document.getElementById('cctv-gemini').style.display = 'block';
+    } else if(allCameras.length > 0){
+      try {
+        const aRes  = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({devices: allCameras, context: 'cctv_search'})
+        });
+        const aData = await aRes.json();
+        if(aData.analysis){
+          document.getElementById('cctv-gem-text').textContent = aData.analysis;
+          document.getElementById('cctv-gemini').style.display = 'block';
+        }
+      } catch(e){}
+    }
+
+  } catch(e){
+    clearInterval(tickInterval);
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    empty.innerHTML = '<div style="color:var(--danger)">✗ Search failed: ' + e.message + '</div>';
+  }
+}
+
+function renderCameras(){
+  const empty = document.getElementById('cctv-empty');
+  const grid  = document.getElementById('cctv-grid');
+
+  if(!allCameras.length){
+    empty.innerHTML = '<div style="font-size:32px;opacity:0.2;margin-bottom:12px">📹</div><div style="font-family:Rajdhani,sans-serif;letter-spacing:2px">No cameras found</div>';
+    empty.style.display = 'block';
+    grid.innerHTML = '';
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  // Kaynak bazlı sayaç badge'leri
+  const srcCounts = {};
+  allCameras.forEach(c => srcCounts[c.source||'?'] = (srcCounts[c.source||'?']||0) + 1);
+  document.getElementById('cam-stat-badges').innerHTML =
+    `<span class="badge badge-ok">📹 ${allCameras.length} cameras</span>` +
+    Object.entries(srcCounts)
+      .sort((a,b) => b[1]-a[1])
+      .map(([s,n]) => `<span class="badge badge-info">${s}: ${n}</span>`)
+      .join('');
+  document.getElementById('cam-stats').style.display = 'block';
+
+  grid.innerHTML = allCameras.map(d => {
+    const rColor = d.risk >= 70 ? '#F87171' : d.risk >= 40 ? '#FBBF24' : '#4ADE80';
+
+    // Preview: thumb_url (EarthCam) > stream_url (Insecam/Windy) > http://ip:port (gerçek IP kameralar)
+    const isVirtualIp = !d.ip || d.ip.startsWith('earthcam:') || d.ip.startsWith('osm:');
+    const previewSrc  = d.thumb_url
+      || (d.source === 'insecam' || d.source === 'windy' ? d.stream_url : null)
+      || (!isVirtualIp ? `http://${d.ip}:${d.port}` : null);
+
+    // Wrap in a container so failed image loads swap to a styled "no preview" fallback
+    // (previously a broken image left a black 140px void on the card).
+    const preview = previewSrc
+      ? `<div class="cam-preview-wrap">
+           <img src="${previewSrc}"
+                loading="lazy"
+                referrerpolicy="no-referrer"
+                onerror="this.closest('.cam-preview-wrap').classList.add('failed')">
+           <div class="cam-fallback">
+             <div class="ico">📹</div>
+             <div>PREVIEW UNAVAILABLE</div>
+             <div style="opacity:0.6;font-size:9px">${d.source || 'unknown'} · offline or blocked</div>
+           </div>
+         </div>`
+      : `<div class="cam-preview-wrap failed">
+           <div class="cam-fallback">
+             <div class="ico">📹</div>
+             <div>NO PREVIEW</div>
+             <div style="opacity:0.6;font-size:9px">${d.source || 'unknown'} · metadata only</div>
+           </div>
+         </div>`;
+
+    const displayName = d.ssid || (!isVirtualIp ? d.ip : null) || 'Unknown';
+
+    const srcColor = {
+      shodan:'#F87171', zoomeye:'#FB923C', fofa:'#FBBF24',
+      criminalip:'#A78BFA', binaryedge:'#60A5FA', windy:'#34D399',
+      osm:'#86EFAC', insecam:'#F472B6', earthcam:'#38BDF8'
+    }[d.source] || '#94A3B8';
+
+    return `<div style="background:var(--s);border:1px solid var(--b);border-radius:8px;padding:18px;transition:border-color 0.2s"
+              onmouseover="this.style.borderColor='rgba(139,92,246,0.3)'"
+              onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+
+      ${preview}
+
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <span style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:var(--t);word-break:break-all;flex:1">${displayName}</span>
+        <span style="font-size:11px;font-weight:700;color:${rColor};white-space:nowrap;margin-left:8px">RISK ${d.risk||0}</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--td)">
+        ${d.port && !isVirtualIp ? `<span>PORT: <span style="color:var(--pl)">${d.port}</span></span>` : ''}
+        ${d.org   ? `<span>ORG: ${d.org.substring(0,40)}</span>` : ''}
+        ${d.city||d.country ? `<span>LOC: ${[d.city,d.country].filter(Boolean).join(', ')}</span>` : ''}
+        ${d.banner ? `<span style="font-size:10px;color:var(--tm);margin-top:3px;word-break:break-all">${d.banner.substring(0,80)}...</span>` : ''}
+      </div>
+
+      <div style="display:flex;gap:5px;margin-top:10px;flex-wrap:wrap">
+        <span class="badge" style="background:rgba(0,0,0,0.3);color:${srcColor};border:1px solid ${srcColor}40">${d.source||'—'}</span>
+        ${d.country ? `<span class="badge" style="background:rgba(96,165,250,0.1);color:#60A5FA;border:1px solid rgba(96,165,250,0.25)">${d.country}</span>` : ''}
+        ${d.wpasec_hit  ? '<span class="badge badge-err">CRACKED</span>'  : ''}
+        ${d.leaked      ? '<span class="badge badge-warn">EXPOSED</span>' : ''}
+        ${d.auth===false ? '<span class="badge badge-err">NO AUTH</span>' : ''}
+        ${d.port==554 && !isVirtualIp
+            ? `<a href="rtsp://${d.ip}:554" target="_blank" class="badge badge-ok" style="text-decoration:none">RTSP</a>`
+            : ''}
+        ${d.stream_url
+            ? `<a href="${d.stream_url}" target="_blank" class="badge badge-ok" style="text-decoration:none">▶ LIVE</a>`
+            : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function exportCameras(){
+  if(!allCameras.length) return;
+  const blob = new Blob([JSON.stringify(allCameras, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `signalops_cameras_${Date.now()}.json`;
+  a.click();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Signal OPS{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --p:#8B5CF6;--pl:#A78BFA;--g:#4ADE80;--bg:#080E09;--s:#0F140F;
+  --e:#1A1F1A;--t:#E2E2EC;--td:#9896AE;--tm:#3A3A4E;
+  --b:rgba(255,255,255,0.06);--danger:#F87171;--warn:#FBBF24
+}
+body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--t);min-height:100vh}
+.topnav{position:fixed;top:0;left:0;right:0;height:62px;background:rgba(8,11,9,0.97);
+  border-bottom:1px solid rgba(139,92,246,0.22);backdrop-filter:blur(20px);
+  display:flex;align-items:center;padding:0 24px;gap:20px;z-index:1000}
+.logo{display:flex;align-items:center;gap:11px;cursor:pointer;text-decoration:none;flex-shrink:0}
+.logo img{width:40px;height:40px;border-radius:50%;
+  filter:drop-shadow(0 0 6px rgba(139,92,246,0.8)) drop-shadow(0 0 14px rgba(109,40,217,0.5))}
+.logo h2{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;letter-spacing:3px;color:var(--t)}
+.logo h2 span{color:var(--g)}.logo p{font-size:10px;color:var(--tm);letter-spacing:2px}
+.topnav-menu{display:flex;align-items:center;gap:1px;flex:1;justify-content:center;overflow-x:auto;scrollbar-width:none}
+.topnav-menu::-webkit-scrollbar{display:none}
+.nav-item{display:flex;align-items:center;gap:6px;padding:6px 12px;
+  font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;letter-spacing:0.8px;
+  color:var(--td);text-transform:uppercase;border:1px solid transparent;
+  border-radius:5px;transition:all 0.2s;white-space:nowrap;text-decoration:none}
+.nav-item:hover,.nav-item.active{color:var(--pl);background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.25)}
+.stat-right{display:flex;align-items:center;gap:7px;padding:5px 11px;
+  background:rgba(74,222,128,0.05);border:1px solid rgba(74,222,128,0.18);
+  border-radius:5px;font-size:11px;color:var(--td);flex-shrink:0}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g);animation:pulse 2.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.content{margin-top:62px;padding:28px}
+.section-hdr{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;
+  letter-spacing:3px;color:var(--td);text-transform:uppercase;margin-bottom:16px;
+  display:flex;align-items:center;gap:10px}
+.section-hdr::before{content:'';width:3px;height:18px;background:var(--p);
+  border-radius:2px;box-shadow:0 0 8px var(--p);flex-shrink:0}
+.card{background:var(--s);border:1px solid var(--b);border-radius:8px;padding:20px;margin-bottom:20px}
+.card:hover{border-color:rgba(139,92,246,0.2)}
+.badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:600;letter-spacing:1px}
+.badge-ok{background:rgba(74,222,128,0.12);color:var(--g);border:1px solid rgba(74,222,128,0.25)}
+.badge-err{background:rgba(248,113,113,0.12);color:var(--danger);border:1px solid rgba(248,113,113,0.25)}
+.badge-warn{background:rgba(251,191,36,0.12);color:var(--warn);border:1px solid rgba(251,191,36,0.25)}
+.badge-info{background:rgba(139,92,246,0.12);color:var(--pl);border:1px solid rgba(139,92,246,0.25)}
+input,select,textarea{background:var(--e);border:1px solid rgba(255,255,255,0.08);
+  border-radius:6px;color:var(--t);font-family:'JetBrains Mono',monospace;
+  font-size:12px;padding:8px 12px;outline:none;width:100%;transition:border-color 0.2s}
+input:focus,select:focus,textarea:focus{border-color:rgba(139,92,246,0.5);box-shadow:0 0 0 3px rgba(139,92,246,0.08)}
+input::placeholder{color:var(--tm)}
+.btn{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;cursor:pointer;border-radius:6px;border:1px solid transparent;
+  padding:8px 20px;transition:all 0.2s}
+.btn-p{background:var(--p);color:#fff;border-color:var(--p)}
+.btn-p:hover{background:var(--pl);box-shadow:0 0 16px rgba(139,92,246,0.4)}
+.btn-g{background:rgba(74,222,128,0.1);color:var(--g);border-color:rgba(74,222,128,0.3)}
+.btn-g:hover{background:rgba(74,222,128,0.2)}
+.btn-outline{background:transparent;color:var(--td);border-color:rgba(255,255,255,0.1)}
+.btn-outline:hover{color:var(--t);border-color:rgba(139,92,246,0.3)}
+table{width:100%;border-collapse:collapse}
+th{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;
+  color:var(--tm);text-transform:uppercase;padding:10px 12px;border-bottom:1px solid var(--b);text-align:left}
+td{font-size:11px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.03);color:var(--td)}
+tr:hover td{background:rgba(139,92,246,0.04)}
+.risk-bar{height:4px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:4px}
+.risk-fill{height:4px;border-radius:2px}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:rgba(139,92,246,0.2);border-radius:4px}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+{% block extra_style %}{% endblock %}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a class="logo" href="/dashboard">
+    <img src="/static/sigint.png" alt="logo">
+    <div><h2>SIGNAL <span>OPS</span></h2><p>Signal Intelligence Platform</p></div>
+  </a>
+  <div class="topnav-menu">
+{% set pages = [
+  ('/dashboard','Dashboard'),('/map-w','SIGINT Map'),('/surveillance','Surveillance'),
+  ('/cctv','CCTV'),('/geo','Geo Track'),('/mobile','Mobile'),('/adsb','ADS-B'),
+  ('/orbital','Orbital'),('/sdr','SDR'),
+  ('/social','Social'),('/profiles','Profiles'),('/watchlist','Watchlist'),('/settings','Settings')
+] %}
+    {% for href, label in pages %}
+    <a href="{{ href }}" class="nav-item {% if active == label %}active{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </div>
+  <div class="stat-right"><div class="dot"></div><span>ONLINE</span></div>
+</nav>
+<div class="content">
+{% block content %}{% endblock %}
+</div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

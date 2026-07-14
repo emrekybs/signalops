@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Profiles — Signal OPS{% endblock %}
+{% block content %}
+<div class="section-hdr">Device Profiles</div>
+<div style="display:flex;gap:12px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+  <input id="p-search" placeholder="Search profiles..." style="max-width:300px">
+  <select id="p-type-filter" style="width:140px">
+    <option value="">All Types</option>
+    <option value="router">WiFi</option>
+    <option value="camera">Camera</option>
+    <option value="cell_tower">Cell Tower</option>
+    <option value="drone">Drone</option>
+    <option value="bluetooth">Bluetooth</option>
+    <option value="iot_device">IoT</option>
+  </select>
+  <button class="btn btn-outline" onclick="exportProfiles()" style="padding:8px 14px">⬇ Export JSON</button>
+  <button onclick="clearAll()" style="background:rgba(248,113,113,0.1);color:var(--danger);border:1px solid rgba(248,113,113,0.3);border-radius:6px;padding:8px 16px;cursor:pointer;font-family:Rajdhani,sans-serif;font-size:13px;font-weight:700;letter-spacing:1px">Clear All</button>
+  <span id="p-count" style="font-size:11px;color:var(--tm)"></span>
+</div>
+<div id="p-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px"></div>
+<div id="p-empty" style="text-align:center;padding:80px;color:var(--tm)">
+  <div style="font-size:40px;opacity:0.2;margin-bottom:12px">👤</div>
+  <div style="font-family:'Rajdhani',sans-serif;letter-spacing:3px">NO SAVED PROFILES</div>
+  <div style="font-size:11px;margin-top:8px">Save devices from the Surveillance page</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const typeColor={router:'#A78BFA',camera:'#F87171',cell_tower:'#C084FC',drone:'#FF2288',bluetooth:'#60A5FA',iot_device:'#FBBF24'};
+
+function getProfiles(){try{return JSON.parse(localStorage.getItem('sigint_profiles')||'[]');}catch(e){return[];}}
+function saveProfiles(p){localStorage.setItem('sigint_profiles',JSON.stringify(p));}
+function clearAll(){if(confirm('Delete all profiles?')){localStorage.removeItem('sigint_profiles');renderProfiles();}}
+
+function exportProfiles(){
+  const profiles=getProfiles();
+  if(!profiles.length)return;
+  const blob=new Blob([JSON.stringify(profiles,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`signalops_profiles_${Date.now()}.json`;a.click();
+}
+
+function renderProfiles(){
+  const query=document.getElementById('p-search').value.toLowerCase();
+  const typeFilter=document.getElementById('p-type-filter').value;
+  let profiles=getProfiles().filter(p=>{
+    if(typeFilter&&p.type!==typeFilter)return false;
+    if(query&&!JSON.stringify(p).toLowerCase().includes(query))return false;
+    return true;
+  });
+  document.getElementById('p-count').textContent=`${profiles.length} profiles`;
+  if(!profiles.length){
+    document.getElementById('p-empty').style.display='block';
+    document.getElementById('p-grid').innerHTML='';return;
+  }
+  document.getElementById('p-empty').style.display='none';
+  document.getElementById('p-grid').innerHTML=profiles.map((p,i)=>`
+    <div style="background:var(--s);border:1px solid var(--b);border-radius:8px;padding:16px;transition:border-color 0.2s" onmouseover="this.style.borderColor='rgba(139,92,246,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <span style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--t);font-size:14px">${p.ssid||p.ip||p.cell_id||'Unknown'}</span>
+        <button onclick="removeProfile(${i})" style="background:none;border:none;color:var(--tm);cursor:pointer;font-size:14px">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--td)">
+        <span>Type: <span style="color:${typeColor[p.type]||'#9896AE'}">${p.type||'—'}</span></span>
+        ${p.bssid?`<span>BSSID: ${p.bssid}</span>`:''}
+        ${p.ip?`<span>IP: ${p.ip}</span>`:''}
+        ${p.country?`<span>Country: ${p.country}</span>`:''}
+        ${p.source?`<span>Source: ${p.source}</span>`:''}
+        ${p.risk!=null?`<span>Risk: <span style="color:${p.risk>=70?'#F87171':p.risk>=40?'#FBBF24':'#4ADE80'}">${p.risk}/100</span></span>`:''}
+      </div>
+      <div style="margin-top:10px;font-size:10px;color:var(--tm)">${new Date(p.saved_at||0).toLocaleString()}</div>
+    </div>`).join('');
+}
+
+function removeProfile(i){
+  const all=getProfiles();all.splice(i,1);saveProfiles(all);renderProfiles();
+}
+
+document.getElementById('p-search').addEventListener('input',renderProfiles);
+document.getElementById('p-type-filter').addEventListener('change',renderProfiles);
+renderProfiles();
+</script>
+{% endblock %}

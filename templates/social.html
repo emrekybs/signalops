@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}Social Intel — Signal OPS{% endblock %}
+{% block content %}
+<div class="section-hdr">OSINT Quick Tools</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+  <div class="card">
+    <div class="section-hdr" style="font-size:13px;margin-bottom:12px">MAC / BSSID Vendor Lookup</div>
+    <input id="mac-in" placeholder="XX:XX:XX:XX:XX:XX" style="margin-bottom:8px">
+    <button class="btn btn-p" onclick="macLookup()" style="width:100%">LOOKUP</button>
+    <div id="mac-result" style="margin-top:12px;font-size:13px;color:var(--g);display:none"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-hdr" style="font-size:13px;margin-bottom:12px">WPA-SEC Check</div>
+    <input id="wpa-bssid" placeholder="BSSID (XX:XX:XX:XX:XX:XX)" style="margin-bottom:8px">
+    <button class="btn btn-p" onclick="wpaCheck()" style="width:100%">CHECK CREDENTIALS</button>
+    <div id="wpa-result" style="margin-top:12px;font-size:12px;display:none"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     IP THREAT INTELLIGENCE — multi-source dashboard
+     ═══════════════════════════════════════════════════ -->
+<div class="card" style="margin-bottom:16px">
+  <div class="section-hdr" style="font-size:13px;margin-bottom:12px">IP Threat Intelligence</div>
+  <div style="display:flex;gap:8px;margin-bottom:8px">
+    <input id="ipi-in" placeholder="IP Address (e.g. 1.1.1.1)" style="flex:1">
+    <button class="btn btn-p" onclick="ipIntel()" style="min-width:120px">ANALYZE</button>
+  </div>
+  <div id="ipi-status" style="font-size:12px;color:var(--td);display:none;margin-top:6px"></div>
+
+  <div id="ipi-dashboard" style="display:none;margin-top:16px">
+
+    <!-- A) HEADER -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px">
+      <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px">
+        <div style="font-size:10px;color:var(--td);text-transform:uppercase;letter-spacing:1px">IP</div>
+        <div id="ipi-ip" style="color:var(--t);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;margin-top:4px">—</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px">
+        <div style="font-size:10px;color:var(--td);text-transform:uppercase;letter-spacing:1px">Country / City</div>
+        <div id="ipi-loc" style="color:var(--t);font-size:13px;margin-top:4px">—</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px">
+        <div style="font-size:10px;color:var(--td);text-transform:uppercase;letter-spacing:1px">ISP / ASN</div>
+        <div id="ipi-org" style="color:var(--t);font-size:12px;margin-top:4px;word-break:break-word">—</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px">
+        <div style="font-size:10px;color:var(--td);text-transform:uppercase;letter-spacing:1px">Hostname</div>
+        <div id="ipi-host" style="color:var(--t);font-size:12px;margin-top:4px;word-break:break-word">—</div>
+      </div>
+    </div>
+
+    <!-- B) RISK PANEL -->
+    <div id="ipi-risk-panel" style="border-radius:8px;padding:16px;margin-bottom:14px;border:1px solid rgba(255,255,255,0.08)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--td)">Risk Score</div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px">
+            <span id="ipi-score" style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:38px;line-height:1">0</span>
+            <span style="font-size:14px;color:var(--td)">/ 100</span>
+          </div>
+        </div>
+        <div id="ipi-level-badge" style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:20px;padding:8px 18px;border-radius:6px;letter-spacing:2px">LOW</div>
+      </div>
+      <div id="ipi-score-bar-wrap" style="margin-top:12px;height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden">
+        <div id="ipi-score-bar" style="height:100%;width:0%;transition:width .6s ease;background:#4ade80"></div>
+      </div>
+      <div id="ipi-reasons" style="margin-top:10px;font-size:12px;color:var(--td)"></div>
+    </div>
+
+    <!-- C) FINDINGS + D) PORTS grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px">
+        <div class="section-hdr" style="font-size:12px;margin-bottom:10px">⚠ Findings</div>
+        <div id="ipi-findings" style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+          <span style="color:var(--td)">No notable findings</span>
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px">
+        <div class="section-hdr" style="font-size:12px;margin-bottom:10px">⚡ Open Ports</div>
+        <div id="ipi-ports" style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px">
+          <span style="color:var(--td)">None detected</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- E) SOURCES -->
+    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px">
+      <div class="section-hdr" style="font-size:12px;margin-bottom:10px">Sources</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;font-size:12px">
+        <div>
+          <div style="color:var(--td);font-size:10px;text-transform:uppercase;letter-spacing:1px">AbuseIPDB</div>
+          <div id="ipi-abuse" style="color:var(--t);margin-top:4px">—</div>
+        </div>
+        <div>
+          <div style="color:var(--td);font-size:10px;text-transform:uppercase;letter-spacing:1px">CriminalIP</div>
+          <div id="ipi-criminal" style="color:var(--t);margin-top:4px">—</div>
+        </div>
+        <div>
+          <div style="color:var(--td);font-size:10px;text-transform:uppercase;letter-spacing:1px">LeakIX</div>
+          <div id="ipi-leakix" style="color:var(--t);margin-top:4px">—</div>
+        </div>
+        <div>
+          <div style="color:var(--td);font-size:10px;text-transform:uppercase;letter-spacing:1px">ZoomEye</div>
+          <div id="ipi-zoomeye" style="color:var(--t);margin-top:4px">—</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-hdr" style="font-size:13px;margin-bottom:12px">Quick Links</div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px">
+    <a href="https://wigle.net" target="_blank" class="btn btn-outline" style="text-decoration:none">WiGLE</a>
+    <a href="https://www.shodan.io" target="_blank" class="btn btn-outline" style="text-decoration:none">Shodan</a>
+    <a href="https://www.zoomeye.org" target="_blank" class="btn btn-outline" style="text-decoration:none">ZoomEye</a>
+    <a href="https://fofa.info" target="_blank" class="btn btn-outline" style="text-decoration:none">FOFA</a>
+    <a href="https://leakix.net" target="_blank" class="btn btn-outline" style="text-decoration:none">LeakIX</a>
+    <a href="https://hunter.how" target="_blank" class="btn btn-outline" style="text-decoration:none">Hunter.how</a>
+    <a href="https://www.criminalip.io" target="_blank" class="btn btn-outline" style="text-decoration:none">CriminalIP</a>
+    <a href="https://app.netlas.io" target="_blank" class="btn btn-outline" style="text-decoration:none">Netlas</a>
+    <a href="https://www.abuseipdb.com" target="_blank" class="btn btn-outline" style="text-decoration:none">AbuseIPDB</a>
+    <a href="https://openstreetmap.org" target="_blank" class="btn btn-outline" style="text-decoration:none">OSM</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── MAC vendor ───────────────────────────────────────
+async function macLookup(){
+  const mac=document.getElementById('mac-in').value.trim();
+  if(!mac)return;
+  try{
+    const r=await fetch(`/api/mac-lookup?mac=${encodeURIComponent(mac)}`);
+    const el=document.getElementById('mac-result');
+    const vd=await r.json();
+    el.textContent=vd.vendor||'Not found';
+    el.style.color=r.ok&&vd.vendor?'var(--g)':'var(--danger)';
+    el.style.display='block';
+  }catch(e){
+    const el=document.getElementById('mac-result');
+    el.textContent='Error';
+    el.style.color='var(--danger)';
+    el.style.display='block';
+  }
+}
+
+// ── WPA-SEC ──────────────────────────────────────────
+async function wpaCheck(){
+  const bssid=document.getElementById('wpa-bssid').value.trim().toUpperCase();
+  if(!bssid)return;
+  const el=document.getElementById('wpa-result');
+  el.textContent='Checking...';el.style.display='block';el.style.color='var(--td)';
+  try{
+    const res=await fetch(`/api/wpasec-check?bssid=${encodeURIComponent(bssid)}`);
+    const d=await res.json();
+    if(d.found){
+      el.innerHTML=`<div style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);border-radius:6px;padding:12px">
+        <div style="color:#F87171;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px">⚠ CRACKED</div>
+        <div style="color:var(--td);margin-top:6px">ESSID: ${escapeHtml(d.essid||'?')}</div>
+        <div style="color:var(--td)">Password: <span style="color:#F87171;font-weight:700">${escapeHtml(d.password||'?')}</span></div>
+      </div>`;
+    }else{
+      el.innerHTML='<div style="color:var(--g)">✓ Not found in WPA-SEC database</div>';
+    }
+  }catch(e){
+    el.innerHTML='<span style="color:var(--danger)">Check failed</span>';
+  }
+}
+
+// ── IP Threat Intelligence ───────────────────────────
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+function riskColors(level){
+  if(level==='HIGH')   return {bg:'rgba(248,113,113,0.08)', border:'rgba(248,113,113,0.35)', fg:'#F87171', bar:'#F87171'};
+  if(level==='MEDIUM') return {bg:'rgba(250,204,21,0.08)',  border:'rgba(250,204,21,0.35)',  fg:'#FACC15', bar:'#FACC15'};
+  return                       {bg:'rgba(74,222,128,0.08)',  border:'rgba(74,222,128,0.35)',  fg:'#4ADE80', bar:'#4ADE80'};
+}
+
+async function ipIntel(){
+  const ip=document.getElementById('ipi-in').value.trim();
+  const status=document.getElementById('ipi-status');
+  const dash=document.getElementById('ipi-dashboard');
+  if(!ip){
+    status.textContent='Enter an IP address.';
+    status.style.color='var(--danger)';
+    status.style.display='block';
+    return;
+  }
+  status.textContent='Aggregating threat intelligence from multiple sources...';
+  status.style.color='var(--td)';
+  status.style.display='block';
+  dash.style.display='none';
+
+  try{
+    const r=await fetch(`/api/ip-intel?ip=${encodeURIComponent(ip)}`);
+    const d=await r.json();
+    if(!r.ok || d.error){
+      status.textContent=d.error || `HTTP ${r.status}`;
+      status.style.color='var(--danger)';
+      return;
+    }
+    status.style.display='none';
+    renderIpIntel(d);
+  }catch(e){
+    status.textContent='Request failed: '+e.message;
+    status.style.color='var(--danger)';
+  }
+}
+
+function renderIpIntel(d){
+  const dash=document.getElementById('ipi-dashboard');
+  dash.style.display='block';
+
+  // A) HEADER
+  document.getElementById('ipi-ip').textContent = d.ip || '—';
+  const g = d.geo || {};
+  document.getElementById('ipi-loc').textContent  = [g.city, g.country].filter(Boolean).join(', ') || '—';
+  document.getElementById('ipi-org').textContent  = g.org || '—';
+  document.getElementById('ipi-host').textContent = g.hostname || '—';
+
+  // B) RISK PANEL
+  const lvl   = d.risk_level || 'LOW';
+  const score = d.risk_score || 0;
+  const c     = riskColors(lvl);
+  const panel = document.getElementById('ipi-risk-panel');
+  panel.style.background = c.bg;
+  panel.style.borderColor = c.border;
+
+  document.getElementById('ipi-score').textContent = score;
+  document.getElementById('ipi-score').style.color = c.fg;
+
+  const badge = document.getElementById('ipi-level-badge');
+  badge.textContent = lvl;
+  badge.style.background = c.bg;
+  badge.style.color = c.fg;
+  badge.style.border = '1px solid '+c.border;
+
+  const bar = document.getElementById('ipi-score-bar');
+  bar.style.width = score+'%';
+  bar.style.background = c.bar;
+
+  const reasons = d.risk_reasons || [];
+  document.getElementById('ipi-reasons').innerHTML = reasons.length
+    ? reasons.map(r=>`<span style="display:inline-block;margin:3px 6px 3px 0;padding:2px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:4px">${escapeHtml(r)}</span>`).join('')
+    : '<span style="color:var(--td)">No risk indicators triggered.</span>';
+
+  // C) FINDINGS
+  const fEl = document.getElementById('ipi-findings');
+  const findings = d.findings || [];
+  if(findings.length){
+    fEl.innerHTML = findings.map(f=>
+      `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);border-radius:4px">
+         <span style="color:#F87171;font-weight:700">●</span>
+         <span style="color:var(--t)">${escapeHtml(f)}</span>
+       </div>`).join('');
+  } else {
+    fEl.innerHTML = '<span style="color:var(--g)">✓ No notable findings</span>';
+  }
+
+  // D) PORTS
+  const pEl = document.getElementById('ipi-ports');
+  const ports = d.ports || [];
+  const riskyPorts = new Set([23,554,7547,21]);
+  if(ports.length){
+    pEl.innerHTML = ports.map(p=>{
+      const risky = riskyPorts.has(p);
+      const col   = risky ? '#F87171' : 'var(--g)';
+      const bgc   = risky ? 'rgba(248,113,113,0.1)' : 'rgba(74,222,128,0.08)';
+      const bdc   = risky ? 'rgba(248,113,113,0.3)' : 'rgba(74,222,128,0.25)';
+      return `<span style="padding:4px 10px;background:${bgc};border:1px solid ${bdc};border-radius:4px;color:${col};font-family:'Rajdhani',sans-serif;font-weight:700">${p}</span>`;
+    }).join('');
+  } else {
+    pEl.innerHTML = '<span style="color:var(--td)">None detected</span>';
+  }
+
+  // E) SOURCES
+  const ab = d.abuse || {};
+  document.getElementById('ipi-abuse').innerHTML = ab.available
+    ? `Score: <span style="color:${ab.abuseConfidenceScore>70?'#F87171':ab.abuseConfidenceScore>40?'#FACC15':'var(--g)'};font-weight:700">${ab.abuseConfidenceScore}</span> · Reports: ${ab.totalReports}`
+    : '<span style="color:var(--td)">unavailable</span>';
+
+  const cr = d.criminal || {};
+  document.getElementById('ipi-criminal').innerHTML = cr.available
+    ? `Score: <span style="color:${cr.score>70?'#F87171':cr.score>40?'#FACC15':'var(--g)'};font-weight:700">${cr.score}</span>${cr.classification?' · '+escapeHtml(cr.classification):''}${cr.tags&&cr.tags.length?' <span style="color:var(--td)">('+cr.tags.map(escapeHtml).join(', ')+')</span>':''}`
+    : '<span style="color:var(--td)">unavailable</span>';
+
+  const lx = d.leakix || {};
+  document.getElementById('ipi-leakix').innerHTML = lx.available
+    ? (lx.exposed
+        ? `<span style="color:#F87171;font-weight:700">EXPOSED</span> · ${(lx.services||[]).length} services${lx.leak_count?` · ${lx.leak_count} leaks`:''}`
+        : '<span style="color:var(--g)">clean</span>')
+    : '<span style="color:var(--td)">unavailable</span>';
+
+  const ze = d.zoomeye || {};
+  document.getElementById('ipi-zoomeye').innerHTML = ze.available
+    ? `${(ze.ports||[]).length} ports${ze.total?` · ${ze.total} records`:''}`
+    : '<span style="color:var(--td)">unavailable</span>';
+}
+
+// Enter-to-submit for all inputs
+document.getElementById('ipi-in').addEventListener('keydown', e=>{ if(e.key==='Enter') ipIntel(); });
+document.getElementById('mac-in').addEventListener('keydown', e=>{ if(e.key==='Enter') macLookup(); });
+document.getElementById('wpa-bssid').addEventListener('keydown', e=>{ if(e.key==='Enter') wpaCheck(); });
+</script>
+{% endblock %}
