@@ -1,4 +1,5 @@
 # Signal OPS
+![SIGINT Map — satellite view](screenshots/sigint.png)
 
 A signals-intelligence and OSINT aggregation dashboard for **security research and educational purposes**. Signal OPS unifies dozens of public data sources — WiFi/Bluetooth/cell-tower databases, internet-exposure scanners, camera indexes, ADS-B flight feeds, satellite TLE tracking, and SDR/APRS networks — behind a single Flask API and map interface, with optional AI-assisted threat summaries.
 
@@ -86,8 +87,8 @@ pip install flask requests python-dotenv cachetools flask-limiter sgp4 google-ge
 ### 1. Clone and enter the project
 
 ```bash
-git clone https://github.com/<your-username>/<your-repo>.git
-cd <your-repo>
+git https://github.com/emrekybs/signalops.git
+unzip signalops-v1.zip
 ```
 
 ### 2. (Optional) create a virtual environment
