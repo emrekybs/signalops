@@ -1,259 +1,51 @@
-# Signal OPS
+# SignalOps
 
-A full-spectrum, all-source signal intelligence fusion platform for security research and training. Signal OPS pulls dozens of open collection sources — WiFi/Bluetooth/cell-tower databases, internet-exposure scanners, camera indexes, ADS-B flight feeds, satellite TLE tracking, and SDR/APRS networks — into a single tactical map and Flask API, correlating the RF, cellular, airspace, orbital, and surveillance domains into one real-time operational picture, with optional AI-assisted threat summaries layered on top.
+SignalOps puts what is transmitting around a location on one map: Wi-Fi and Bluetooth devices, cell towers, exposed and public cameras, aircraft, satellites, ships and RF networks. It runs on your own machine. There is no account and no cloud backend.
 
----
-## Features
+![Overview](docs/screenshots/overview.png)
 
-- **Unified RF/OSINT scan** — one call fans out to WiFi, Bluetooth, cell-tower, IoT, camera, and aircraft sources in parallel, deduplicates, and scores results.
-- **Camera discovery** — Shodan, FOFA, BinaryEdge, Windy Webcams, OpenStreetMap surveillance nodes, and Insecam, by coordinates or by country.
-- **Cellular intelligence** — cell-tower lookups (WiGLE, OpenCellID) with offline MCC/MNC → operator/country resolution and IMSI-catcher / Stingray heuristics.
-- **Wireless threat detection** — rogue / evil-twin access point detection and Bluetooth tracker (AirTag, Tile, SmartTag…) identification.
-- **Airspace monitoring** — live ADS-B via adsb.fi and OpenSky, emergency-squawk decoding, drone heuristics, and a GPS-jamming heatmap derived from aircraft NAC-P.
-- **Orbital tracking** — CelesTrak TLE ingestion with SGP4 propagation, mission classification, and SatNOGS ground-station overlay.
-- **SDR & APRS** — public KiwiSDR receiver map and APRS.fi station lookups.
-- **IP threat intelligence** — multi-source aggregation (ipinfo, AbuseIPDB, CriminalIP, LeakIX, ZoomEye) with a lightweight port scan and combined risk scoring.
-- **Watchlist & alerts** — track specific BSSIDs, SSIDs, IPs, MACs, or ICAO hexes and get hits during scans.
-- **AI analysis (optional)** — Google Gemini summarizes scan results into assessments and risk levels when a key is provided.
+## What it finds
 
-Almost every source is **optional**. If a key isn't set, that fetcher is skipped gracefully — the free sources (OpenStreetMap, Insecam, ipinfo.io, ADS-B, CelesTrak, KiwiSDR) work with no keys at all.
+- **Wireless and cellular:** Wi-Fi access points, Bluetooth and BLE devices and cell towers around a point (WiGLE, OpenCellID), with rogue AP, tracker and IMSI-catcher heuristics.
+- **Cameras:**
+  - Internet-exposed IP cameras from Shodan, FOFA, Censys, Netlas and ZoomEye.
+  - 21 official public camera networks, including TfL, NYC DOT, Caltrans, Digitraffic, DGT, Vegagerðin, NSW, QLDTraffic, the 511 systems, NPS and USGS.
+- **Air:** live ADS-B traffic with emergency squawks, drone detection, routes and registrations.
+- **RF:** GNSS jamming zones derived from ADS-B, LoRaWAN gateways, Meshtastic nodes, radiosondes with landing predictions, WSPR / PSKReporter HF paths, KiwiSDR receivers and APRS stations.
+- **Space and sea:** satellite passes with their downlink frequencies (SatNOGS), space weather (NOAA), and AIS vessels.
+- **Investigation:** cases, change detection between scans, a correlation graph, a timeline replay, area monitoring with webhook alerts, a watchlist, and PDF / KML / GeoJSON / CSV export.
 
----
+![ADS-B](docs/screenshots/adsb.png)
 
-## Screenshots
+![RF layers](docs/screenshots/rf.png)
 
-### SIGINT Map — unified multi-source view
+<sub>Screenshots use mock data and documentation-range IPs.</sub>
 
-The main map fuses WiFi, Bluetooth, cell, camera, and aircraft layers over the same area, with toggleable overlays for OSM cameras, ALPR/Flock networks, and police precincts.
-
-![SIGINT Map — satellite view](screenshots/sigint-map.png)
-
-![SIGINT Map — street view with camera / AP / cell markers](screenshots/sigint-map-street.png)
-
-### Surveillance & CCTV
-
-| Surveillance feed | CCTV discovery |
-|---|---|
-| ![Surveillance](screenshots/surveillance.png) | ![CCTV](screenshots/cctv.png) |
-
-The surveillance list scores each device (e.g. *"Suspicion 35/100: Unauthenticated camera"*) and merges routers, TVs, and exposed cameras from WiGLE, Insecam, and OSM. The CCTV view groups discovered cameras by source with per-camera risk and live/metadata status.
-
-### Cell Tower Intelligence & SDR / APRS
-
-| Cell tower heatmap | SDR / APRS network |
-|---|---|
-| ![Cell towers](screenshots/cell-towers.png) | ![SDR / APRS](screenshots/sdr-aprs.png) |
-
-Cell-tower intelligence plots tower density with MCC/MNC operator lookup; the SDR view maps public KiwiSDR receivers and APRS stations with callsign lookup.
----
-
-## Requirements
-
-- Python 3.9+
-- The Python packages listed below
-
-Core dependencies:
-
-```
-flask
-requests
-python-dotenv
-```
-
-Recommended (enables full functionality — caching, rate limiting, satellite propagation):
-
-```
-cachetools        # bounded geo-cache (falls back to an unbounded dict if missing)
-flask-limiter     # request rate limiting
-sgp4              # satellite position propagation for /api/satellites
-google-genai      # Gemini AI analysis (only if you use GEMINI_API_KEY)
-```
-
-Install everything:
+## Install
 
 ```bash
-pip install flask requests python-dotenv cachetools flask-limiter sgp4 google-genai
+pip install signalops-sigint
+signalops
 ```
 
----
+The app opens at **http://localhost:8080**. Add whichever API keys you have under **Settings**. Every source is optional, and the free ones (OSM, adsb.fi, CelesTrak, SondeHub, Meshtastic, NOAA, public cameras) work without a key.
 
-## Setup
-
-### 1. Clone and enter the project
+To run from source instead:
 
 ```bash
-git https://github.com/emrekybs/signalops.git
-unzip signalops-v1.zip
+git clone https://github.com/emrekybs/signalops.git && cd signalops
+./start.sh            # Windows: start.bat · Docker: docker compose up -d
 ```
 
-### 2. (Optional) create a virtual environment
+- **State:** with pip, keys, the database and data live in `~/.signalops`; from source, they stay in the repo folder.
+- **Optional datasets:** the camera, ALPR and precinct datasets go in `data/`.
+- **Options:** `signalops --port 9090 --home /path`, plus optional Tor or a SOCKS proxy in Settings.
+- **Turkish install guide:** [KURULUM.md](KURULUM.md).
 
-```bash
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
-```
+## Responsible use
 
-### 3. Install dependencies
+SignalOps is for lawful, authorized research and education. Finding a device does not give you permission to access it. Follow local law and each provider's terms.
 
-```bash
-pip install -r requirements.txt
-```
+## License
 
-If you don't have a `requirements.txt`, use the `pip install` line from the Requirements section above.
-
-### 4. Configure your environment
-
-Copy the example file and fill in the keys you have:
-
-```bash
-cp .env.example .env
-```
-
-Then open `.env` and paste in your API keys. **Every key is optional** — leave any line blank (or delete it) to disable that source. See the next section for what each one does and where to get it.
-
-### 5. (Optional) add local datasets
-
-For instant, offline camera and precinct lookups, place these under a `data/` directory (or point `DATA_DIR` elsewhere):
-
-```
-data/CAMERAS_WITH_NETWORK_DATA.geojson   # Point features (cameras)
-data/police_precincts_usa.geojson        # Polygon features (US precincts)
-data/camera_networks.json                # network-sharing metadata
-data/tiles/{z}/{x}/{y}.json              # optional tiled camera dataset
-```
-
-If these files are absent, the app automatically falls back to live OpenStreetMap Overpass queries.
-
-### 6. Run
-
-```bash
-python app_v2.py
-```
-
-The server starts on **http://0.0.0.0:8080**. Open `http://localhost:8080` in your browser.
-
-Check which providers loaded successfully at any time:
-
-```
-GET /api/status     # active vs. missing keys
-GET /api/debug      # per-key boolean + live WiGLE auth test
-```
-
----
-
-## Environment variables
-
-Create a `.env` file in the project root. Below is the full list read by the app.
-
-### Data-source API keys (all optional)
-
-| Variable | Provider | Get a key at |
-|---|---|---|
-| `WIGLE_API_NAME` | WiGLE (WiFi/BT/cell) — username | https://wigle.net/account |
-| `WIGLE_API_TOKEN` | WiGLE — API token | https://wigle.net/account |
-| `OPENCELLID_API_KEY` | OpenCellID (cell towers) | https://opencellid.org |
-| `SHODAN_API_KEY` | Shodan (exposure / cameras) | https://account.shodan.io |
-| `CENSYS_API_ID` | Censys — API ID | https://search.censys.io/account/api |
-| `CENSYS_API_SECRET` | Censys — API secret | https://search.censys.io/account/api |
-| `ZOOMEYE_API_KEY` | ZoomEye | https://www.zoomeye.org/profile |
-| `FOFA_EMAIL` | FOFA — account email | https://fofa.info |
-| `FOFA_API_KEY` | FOFA — API key | https://fofa.info |
-| `HUNTERHOW_API_KEY` | Hunter.how | https://hunter.how |
-| `NETLAS_API_KEY` | Netlas | https://netlas.io |
-| `LEAKIX_API_KEY` | LeakIX | https://leakix.net |
-| `CRIMINALIP_API_KEY` | CriminalIP | https://www.criminalip.io |
-| `BINARYEDGE_API_KEY` | BinaryEdge | https://www.binaryedge.io |
-| `WINDY_API_KEY` | Windy Webcams | https://api.windy.com/keys |
-| `ABUSEIPDB_API_KEY` | AbuseIPDB (IP reputation) | https://www.abuseipdb.com/account/api |
-| `ADSB_API_KEY` | adsb.fi (optional; works without) | https://adsb.fi |
-| `APRS_FI_KEY` | APRS.fi (ham radio stations) | https://aprs.fi/page/api_key |
-| `GEMINI_API_KEY` | Google Gemini (AI analysis) | https://aistudio.google.com/apikey |
-
-### App configuration
-
-| Variable | Default | Description |
-|---|---|---|
-| `GEMINI_MODEL` | `gemini-2.0-flash` | Gemini model used for analysis |
-| `DATA_DIR` | `./data` | Directory for local GeoJSON/JSON datasets |
-| `FLASK_SECRET_KEY` | random per run | Flask session secret; set a fixed value in production |
-
-### No-key sources (always on)
-
-These need no configuration: **OpenStreetMap Overpass**, **Insecam**, **EarthCam**, **ipinfo.io**, **ADS-B (adsb.fi / OpenSky)**, **CelesTrak TLE**, **SatNOGS**, and **KiwiSDR**.
-
----
-
-## `.env.example`
-
-Save this as `.env.example` in your repo so others know the format:
-
-```env
-# ── Signal OPS environment ──
-# Every key is optional. Leave blank to disable that source.
-
-# WiFi / Bluetooth / Cell
-WIGLE_API_NAME=
-WIGLE_API_TOKEN=
-OPENCELLID_API_KEY=
-
-# Internet-exposure scanners
-SHODAN_API_KEY=
-CENSYS_API_ID=
-CENSYS_API_SECRET=
-ZOOMEYE_API_KEY=
-FOFA_EMAIL=
-FOFA_API_KEY=
-HUNTERHOW_API_KEY=
-NETLAS_API_KEY=
-LEAKIX_API_KEY=
-CRIMINALIP_API_KEY=
-BINARYEDGE_API_KEY=
-
-# Cameras & IP reputation
-WINDY_API_KEY=
-ABUSEIPDB_API_KEY=
-
-# Aircraft & ham radio
-ADSB_API_KEY=
-APRS_FI_KEY=
-
-# AI analysis
-GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.0-flash
-
-# App config
-DATA_DIR=./data
-FLASK_SECRET_KEY=
-```
-
----
-
-## API overview
-
-A selection of the endpoints exposed (see the source for the full set):
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /nearby?lat=&lon=&mode=` | Unified RF/OSINT scan around a point |
-| `GET /api/cctv?lat=&lon=` or `?country=` | Camera discovery by location or country |
-| `GET /api/search?type=&query=` | Search by SSID, IP, location, or country |
-| `POST /api/analyze` | AI summary of a device list |
-| `GET /api/ip-intel?ip=` | Multi-source IP threat intelligence |
-| `GET /api/adsb?lat=&lon=&radius=` | Live aircraft + emergency detection |
-| `GET /api/satellites?categories=` | Satellite positions (TLE + SGP4) |
-| `GET /api/gps-jamming?lat=&lon=` | GPS-jamming heatmap from ADS-B |
-| `GET /api/sdr/kiwisdr` | Public KiwiSDR receiver list |
-| `GET /api/aprs/stations?lat=&lon=` | Nearby APRS stations |
-| `GET/POST /api/watchlist` | Manage tracked identifiers |
-| `POST /api/watchlist/check` | Check a device list against the watchlist |
-| `GET /api/status` · `GET /api/debug` | Provider health / key diagnostics |
-
----
-
-## Notes & limitations
-
-- Some providers (e.g. ZoomEye, CriminalIP) may be affected by TLS interference on certain ISPs and are disabled in a couple of scan lists by default — see the inline comments in the source to re-enable them behind a VPN/proxy.
-- Rate limits vary widely between providers; free tiers can be small (WiGLE cell is ~100 queries/day, for example). The app skips or backs off where it can, but you are responsible for staying within each provider's limits.
-- Local datasets are optional but dramatically speed up camera/precinct lookups versus live Overpass queries.
-
----
+[MIT](LICENSE) © 2026 Emre Kybs

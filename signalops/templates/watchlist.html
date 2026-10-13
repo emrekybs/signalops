@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% block title %}Watchlist — SignalOps{% endblock %}
+{% block extra_style %}
+.wl-grid{display:grid;grid-template-columns:360px 1fr;gap:16px;align-items:start}
+.wl-entry-row{display:grid;grid-template-columns:90px 1fr 80px 60px 36px;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.03);transition:background 0.15s}
+.wl-entry-row:hover{background:rgba(138, 122, 184,0.04)}
+.wl-entry-row:last-child{border-bottom:none}
+.alert-entry-row{display:grid;grid-template-columns:90px 1fr 110px 70px;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.03);transition:background 0.15s}
+.alert-entry-row:hover{background:rgba(199, 123, 123,0.03)}
+.alert-entry-row:last-child{border-bottom:none}
+.type-tag{font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:3px;text-transform:uppercase;display:inline-block}
+.tag-bssid{background:rgba(180, 168, 214,0.12);color:#B4A8D6;border:1px solid rgba(180, 168, 214,0.25)}
+.tag-ssid{background:rgba(116, 176, 149,0.1);color:#74B095;border:1px solid rgba(116, 176, 149,0.2)}
+.tag-ip{background:rgba(96,165,250,0.1);color:#7C9BC9;border:1px solid rgba(96,165,250,0.2)}
+.tag-icao{background:rgba(201, 161, 90,0.1);color:#C9A15A;border:1px solid rgba(201, 161, 90,0.2)}
+.tag-mac{background:rgba(180, 168, 214,0.1);color:#B4A8D6;border:1px solid rgba(180, 168, 214,0.2)}
+.prio-high{color:#C77B7B}
+.prio-medium{color:#C9A15A}
+.prio-low{color:#74B095}
+.stat-tile{background:var(--s);border:1px solid var(--b);border-radius:7px;padding:14px 16px}
+.stat-tile-num{font-family:'Rajdhani',sans-serif;font-size:28px;font-weight:700;line-height:1;margin-bottom:4px}
+.stat-tile-lbl{font-size:9px;letter-spacing:2px;color:var(--tm);text-transform:uppercase}
+/* ── Responsive (mobile/tablet only; desktop >900px unchanged) ── */
+@media (max-width:900px){
+  .wl-grid{grid-template-columns:minmax(0,1fr)}
+  .wl-grid>div{min-width:0}
+  .wl-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .wl-panel-hdr{flex-wrap:wrap;gap:8px}
+  .wl-entry-row>div,.alert-entry-row>div{min-width:0;overflow-wrap:anywhere}
+  .wl-grid .btn{min-height:36px}
+}
+@media (max-width:600px){
+  .wl-entry-row,.wl-entry-head{grid-template-columns:64px minmax(0,1fr) 54px 32px 32px!important;gap:6px!important;padding-left:10px!important;padding-right:10px!important}
+  .alert-entry-row,.wl-alert-head{grid-template-columns:64px minmax(0,1fr) 64px 56px!important;gap:6px!important;padding-left:10px!important;padding-right:10px!important}
+  .alert-entry-row>span,.wl-alert-head>span{overflow-wrap:anywhere;min-width:0}
+  .wl-alert-head>span,.wl-entry-head>span{letter-spacing:1px!important}
+  .type-tag{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  .wl-form-2col{grid-template-columns:minmax(0,1fr)!important}
+  .stat-tile-num{font-size:24px}
+}
+{% endblock %}
+{% block content %}
+<div class="section-hdr">Watchlist & Alerts</div>
+
+<!-- STATS -->
+<div class="wl-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+  <div class="stat-tile">
+    <div class="stat-tile-num" style="color:var(--pl)" id="st-watching">0</div>
+    <div class="stat-tile-lbl">Watching</div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-tile-num" style="color:var(--danger)" id="st-total-alerts">0</div>
+    <div class="stat-tile-lbl">Total Alerts</div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-tile-num" style="color:var(--warn)" id="st-unread">0</div>
+    <div class="stat-tile-lbl">Unread</div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-tile-num" style="color:var(--g);font-size:14px;padding-top:7px" id="st-last-hit">—</div>
+    <div class="stat-tile-lbl">Last Hit</div>
+  </div>
+</div>
+
+<div class="wl-grid">
+
+  <!-- LEFT: ADD FORM -->
+  <div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="section-hdr" style="font-size:13px;margin-bottom:14px">Add to Watchlist</div>
+
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;color:var(--tm);letter-spacing:2px;margin-bottom:6px">Type</div>
+        <select id="wl-type" onchange="updatePlaceholder()" style="width:100%">
+          <option value="bssid">BSSID (Access Point MAC)</option>
+          <option value="ssid">SSID (Network Name)</option>
+          <option value="ip">IP Address</option>
+          <option value="mac">MAC Address</option>
+          <option value="icao">ICAO Hex (Aircraft)</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;color:var(--tm);letter-spacing:2px;margin-bottom:6px">Value</div>
+        <input id="wl-value" placeholder="AA:BB:CC:DD:EE:FF">
+      </div>
+
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;color:var(--tm);letter-spacing:2px;margin-bottom:6px">NOTE (optional)</div>
+        <input id="wl-note" placeholder="e.g. Suspected rogue AP at HQ">
+      </div>
+
+      <div class="wl-form-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+        <div>
+          <div style="font-size:10px;color:var(--tm);letter-spacing:2px;margin-bottom:6px">Priority</div>
+          <select id="wl-priority">
+            <option value="high"> High</option>
+            <option value="medium" selected> Medium</option>
+            <option value="low"> Low</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--tm);letter-spacing:2px;margin-bottom:6px">Notify</div>
+          <select id="wl-notify">
+            <option value="browser">Browser popup</option>
+            <option value="badge">Badge only</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn btn-p" onclick="addEntry()" style="width:100%">+ Add to watchlist</button>
+      <div id="add-status" style="margin-top:8px;font-size:11px;text-align:center;display:none"></div>
+    </div>
+
+    <!-- QUICK TEMPLATES -->
+    <div class="card">
+      <div class="section-hdr" style="font-size:12px;margin-bottom:10px">Quick Templates</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="btn btn-outline" onclick="quickAdd('ssid','','Monitor SSID for evil twin')" style="text-align:left;font-size:11px;letter-spacing:0.5px">
+          <svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a10 10 0 0 1 0-14"/><path d="M8.5 15.5a5 5 0 0 1 0-7"/><circle cx="12" cy="12" r="1.5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg> SSID — Evil Twin Monitor
+        </button>
+        <button class="btn btn-outline" onclick="quickAdd('bssid','','Rogue access point')" style="text-align:left;font-size:11px;letter-spacing:0.5px">
+          <svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5v.01"/></svg> BSSID — Rogue AP Flag
+        </button>
+        <button class="btn btn-outline" onclick="quickAdd('ip','','Suspicious IoT device')" style="text-align:left;font-size:11px;letter-spacing:0.5px">
+          <svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg> IP — Suspicious IoT Track
+        </button>
+        <button class="btn btn-outline" onclick="quickAdd('icao','','Monitor aircraft')" style="text-align:left;font-size:11px;letter-spacing:0.5px">
+          <svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15.5l-8-4.5V5a1.5 1.5 0 0 0-3 0v6l-8 4.5V17l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-4.5l8 2.5z"/></svg> ICAO — Aircraft Transponder
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div>
+
+    <!-- ALERTS PANEL -->
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px">
+      <div class="wl-panel-hdr" style="padding:12px 16px;border-bottom:1px solid var(--b);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:var(--danger)">
+          <svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg> Recent alerts
+        </span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="unread-badge" style="display:none;background:rgba(199, 123, 123,0.15);color:var(--danger);border:1px solid rgba(199, 123, 123,0.3);border-radius:3px;padding:2px 8px;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700"></span>
+          <button class="btn btn-outline" onclick="markAllRead()" style="padding:4px 10px;font-size:10px">Mark All Read</button>
+          <button class="btn btn-outline" onclick="clearAlerts()" style="padding:4px 10px;font-size:10px">Clear All</button>
+        </div>
+      </div>
+      <div class="wl-alert-head" style="display:grid;grid-template-columns:90px 1fr 110px 70px;gap:8px;padding:8px 14px;border-bottom:1px solid var(--b)">
+        <span style="font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:2px;color:var(--tm)">Type</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:2px;color:var(--tm)">Value / note</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:2px;color:var(--tm)">Scan source</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:2px;color:var(--tm)">Time</span>
+      </div>
+      <div id="alerts-body">
+        <div style="text-align:center;padding:36px;color:var(--tm)">
+          <div style="font-size:26px;opacity:0.2;margin-bottom:8px"></div>
+          <div style="font-family:'Rajdhani',sans-serif;letter-spacing:3px;font-size:12px">No alerts yet</div>
+          <div style="font-size:10px;margin-top:6px">Triggered when watched targets appear in any scan</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WATCHLIST TABLE -->
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="wl-panel-hdr" style="padding:12px 16px;border-bottom:1px solid var(--b);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:var(--t)"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg> Watch targets</span>
+        <button class="btn btn-outline" onclick="exportWatchlist()" style="padding:4px 10px;font-size:10px"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg> Export</button>
+      </div>
+      <div class="wl-entry-head" style="display:grid;grid-template-columns:90px 1fr 80px 60px 36px;gap:8px;padding:8px 14px;border-bottom:1px solid var(--b)">
+        <span style="font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:2px;color:var(--tm)">Type</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:2px;color:var(--tm)">Value / note</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:2px;color:var(--tm)">Priority</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:2px;color:var(--tm)">Hits</span>
+        <span></span>
+      </div>
+      <div id="watchlist-body">
+        <div style="text-align:center;padding:50px;color:var(--tm)">
+          <div style="font-size:26px;opacity:0.2;margin-bottom:8px"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div>
+          <div style="font-family:'Rajdhani',sans-serif;letter-spacing:3px;font-size:12px">Watchlist empty</div>
+          <div style="font-size:10px;margin-top:6px">Add targets using the form on the left</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const TYPE_PLACEHOLDERS = {
+  bssid:'AA:BB:CC:DD:EE:FF',
+  ssid:'Network name (e.g. CorpWifi)',
+  ip:'192.168.1.1',
+  mac:'AA:BB:CC:DD:EE:FF',
+  icao:'4BA820'
+};
+
+function updatePlaceholder(){
+  document.getElementById('wl-value').placeholder = TYPE_PLACEHOLDERS[document.getElementById('wl-type').value]||'';
+}
+
+function quickAdd(type, value, note){
+  document.getElementById('wl-type').value = type;
+  updatePlaceholder();
+  document.getElementById('wl-value').value = value;
+  document.getElementById('wl-note').value = note;
+  document.getElementById('wl-priority').value = 'high';
+  document.getElementById('wl-value').focus();
+}
+
+async function addEntry(){
+  const type     = document.getElementById('wl-type').value;
+  const value    = document.getElementById('wl-value').value.trim();
+  const note     = document.getElementById('wl-note').value.trim();
+  const priority = document.getElementById('wl-priority').value;
+  const notify   = document.getElementById('wl-notify').value;
+  if(!value){ showStatus('Enter a value', 'var(--danger)'); return; }
+  // Ask for notification permission only in response to this user action
+  if(notify==='browser' && 'Notification' in window && Notification.permission==='default'){
+    try{ Notification.requestPermission(); }catch(e){}
+  }
+  try{
+    const res = await fetch('/api/watchlist', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type, value, note, priority, notify})
+    });
+    let d = {};
+    try{ d = await res.json(); }catch(e){ d = {}; }
+    if(res.ok && d.ok){
+      showStatus('✓ Added to watchlist', 'var(--g)');
+      document.getElementById('wl-value').value = '';
+      document.getElementById('wl-note').value = '';
+      loadAll();
+    } else {
+      showStatus(String(d.error || (res.ok ? 'Failed' : `Failed (HTTP ${res.status})`)), 'var(--danger)');
+    }
+  } catch(e){ showStatus('Connection error', 'var(--danger)'); }
+}
+
+let _statusTimer = null;
+function showStatus(msg, color){
+  const el = document.getElementById('add-status');
+  el.textContent = msg; el.style.color = color; el.style.display = 'block';
+  if(_statusTimer) clearTimeout(_statusTimer);
+  _statusTimer = setTimeout(()=>{ el.style.display='none'; }, 3000);
+}
+
+function cls(v){ return String(v==null?'':v).toLowerCase().replace(/[^a-z0-9_-]/g,''); }
+
+async function removeEntry(id){
+  try{ await fetch(`/api/watchlist/${encodeURIComponent(id)}`, {method:'DELETE'}); loadAll(); } catch(e){}
+}
+
+async function markAllRead(){
+  try{ await fetch('/api/watchlist/alerts/read', {method:'POST'}); loadAlerts(); } catch(e){}
+}
+
+async function clearAlerts(){
+  if(!confirm('Clear all alerts?')) return;
+  try{ await fetch('/api/watchlist/alerts', {method:'DELETE'}); loadAll(); } catch(e){}
+}
+
+async function loadAll(){
+  await Promise.all([loadWatchlist(), loadAlerts()]);
+}
+
+async function loadWatchlist(){
+  try{
+    const res = await fetch('/api/watchlist');
+    if(!res.ok) return;
+    const data = await res.json();
+    const entries = Array.isArray(data.entries) ? data.entries : [];
+    document.getElementById('st-watching').textContent = entries.length;
+    renderWatchlist(entries);
+  } catch(e){}
+}
+
+function renderWatchlist(entries){
+  const body = document.getElementById('watchlist-body');
+  if(!entries.length){
+    body.innerHTML = `<div style="text-align:center;padding:50px;color:var(--tm)">
+      <div style="font-size:26px;opacity:0.2;margin-bottom:8px"></div>
+      <div style="font-family:'Rajdhani',sans-serif;letter-spacing:3px;font-size:12px">WATCHLIST EMPTY</div>
+      <div style="font-size:10px;margin-top:6px">Add targets using the form on the left</div>
+    </div>`;
+    return;
+  }
+  body.innerHTML = entries.map(e=>`
+    <div class="wl-entry-row">
+      <span class="type-tag tag-${cls(e.type)}">${escapeHtml(e.type)}</span>
+      <div>
+        <div style="color:var(--t);font-size:12px;font-family:'JetBrains Mono',monospace">${escapeHtml(e.value)}</div>
+        ${e.note?`<div style="font-size:10px;color:var(--tm);margin-top:2px">${escapeHtml(e.note)}</div>`:''}
+      </div>
+      <span class="prio-${cls(e.priority)}" style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase">${escapeHtml(e.priority)}</span>
+      <span style="color:${(Number(e.hit_count)||0)>0?'var(--danger)':'var(--tm)'};font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700">${Number(e.hit_count)||0}</span>
+      <button data-id="${escapeHtml(e.id)}" onclick="removeEntry(this.dataset.id)" style="background:none;border:none;color:var(--tm);cursor:pointer;font-size:14px" title="Remove">✕</button>
+    </div>`).join('');
+}
+
+async function loadAlerts(){
+  try{
+    const res = await fetch('/api/watchlist/alerts');
+    if(!res.ok) return;
+    const data = await res.json();
+    const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+    const unread = (typeof data.unread==='number') ? data.unread : alerts.filter(a=>!a.read).length;
+    document.getElementById('st-total-alerts').textContent = data.total || alerts.length;
+    document.getElementById('st-unread').textContent = unread;
+    const badge = document.getElementById('unread-badge');
+    if(unread>0){ badge.textContent=`${unread} NEW`; badge.style.display='inline-block'; }
+    else { badge.style.display='none'; }
+    if(data.last_hit){
+      document.getElementById('st-last-hit').textContent = new Date(data.last_hit*1000).toLocaleTimeString();
+    }
+    renderAlerts(alerts);
+    notifyNewAlerts(alerts);
+  } catch(e){}
+}
+
+const WL_NOTIFIED_KEY = 'sigops_wl_last_notified';
+function notifyNewAlerts(alerts){
+  if(!('Notification' in window) || Notification.permission!=='granted') return;
+  let lastTs = 0;
+  try{ lastTs = parseFloat(localStorage.getItem(WL_NOTIFIED_KEY)) || 0; }catch(e){}
+  const fresh = alerts.filter(a=>a && a.notify==='browser' && !a.read && (Number(a.ts)||0) > lastTs);
+  if(!fresh.length) return;
+  let maxTs = lastTs;
+  fresh.forEach(a=>{ const t = Number(a.ts)||0; if(t>maxTs) maxTs = t; });
+  fresh.slice(0,5).forEach(a=>{
+    try{
+      new Notification('SignalOps watchlist hit', {
+        body: `${a.type||''}: ${a.value||''}` + (a.note ? ` — ${a.note}` : '')
+      });
+    }catch(e){}
+  });
+  try{ localStorage.setItem(WL_NOTIFIED_KEY, String(maxTs)); }catch(e){}
+}
+
+function renderAlerts(alerts){
+  const body = document.getElementById('alerts-body');
+  if(!alerts.length){
+    body.innerHTML = `<div style="text-align:center;padding:36px;color:var(--tm)">
+      <div style="font-size:26px;opacity:0.2;margin-bottom:8px"></div>
+      <div style="font-family:'Rajdhani',sans-serif;letter-spacing:3px;font-size:12px">NO ALERTS YET</div>
+      <div style="font-size:10px;margin-top:6px">Triggered when watched targets appear in any scan</div>
+    </div>`;
+    return;
+  }
+  body.innerHTML = alerts.slice(0,50).map(a=>{
+    const isNew = !a.read;
+    return `<div class="alert-entry-row" style="${isNew?'background:rgba(248,113,113,0.04)':''}">
+      <span class="type-tag tag-${cls(a.type)}">${escapeHtml(a.type)}</span>
+      <div>
+        <div style="color:${isNew?'var(--danger)':'var(--t)'};font-size:12px;font-family:'JetBrains Mono',monospace">
+          ${escapeHtml(a.value)}
+          ${isNew?'<span style="color:var(--danger);font-family:Rajdhani,sans-serif;font-size:10px;font-weight:700;margin-left:6px">NEW</span>':''}
+        </div>
+        ${a.note?`<div style="font-size:10px;color:var(--tm);margin-top:2px">${escapeHtml(a.note)}</div>`:''}
+      </div>
+      <span style="font-size:10px;color:var(--td)">${escapeHtml(a.scan_source||'scan')}</span>
+      <span style="font-size:10px;color:var(--tm)">${escapeHtml(new Date(a.ts*1000).toLocaleTimeString())}</span>
+    </div>`;
+  }).join('');
+}
+
+async function exportWatchlist(){
+  try{
+    const res = await fetch('/api/watchlist');
+    if(!res.ok) return;
+    const data = await res.json();
+    if(!data.entries||!data.entries.length) return;
+    const blob = new Blob([JSON.stringify(data.entries,null,2)],{type:'application/json'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=`signalops_watchlist_${Date.now()}.json`; a.click();
+  } catch(e){}
+}
+
+loadAll();
+if(!window._wlAlertTimer) window._wlAlertTimer = setInterval(loadAlerts, 15000);
+</script>
+{% endblock %}

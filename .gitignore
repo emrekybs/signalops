@@ -1,0 +1,11 @@
+data/
+static/*.png
+__pycache__/
+watchlist_alerts.json
+config/
+.env
+db/
+.venv/
+dist/
+build/
+*.egg-info/

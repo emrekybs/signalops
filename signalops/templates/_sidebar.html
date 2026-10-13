@@ -1,0 +1,55 @@
+{#- SignalOps — shared left sidebar. Included by base.html, dashboard and the SIGINT map. -#}
+{%- set p = request.path -%}
+{%- macro item(href, label, icon, extra='') -%}
+<a href="{{ href }}" class="so-nav-a{% if p == href or (href != '/dashboard' and p.startswith(href ~ '/')) or (href == '/dashboard' and p == '/') %} is-active{% endif %}"{% if p == href %} aria-current="page"{% endif %}>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{ icon|safe }}</svg>
+  <span>{{ label }}</span>{{ extra|safe }}
+</a>
+{%- endmacro -%}
+<aside class="so-side" id="so-side" aria-label="Main navigation">
+  <a class="so-brand" href="/dashboard">Signal<span>Ops</span></a>
+
+  <nav class="so-nav">
+    <div class="so-nav-group">
+      {{ item('/dashboard', 'Overview', '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>') }}
+    </div>
+
+    <div class="so-nav-group">
+      <div class="so-nav-h">Collect</div>
+      {{ item('/map-w', 'SIGINT Map', '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12l5-5"/>') }}
+      {{ item('/surveillance', 'Surveillance', '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>') }}
+      {{ item('/cctv', 'CCTV', '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3"/>') }}
+      {{ item('/geo', 'Geo Track', '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>') }}
+      {{ item('/mobile', 'Cell Towers', '<path d="M12 10v12"/><path d="M8 22l4-12 4 12"/><path d="M7.5 6.5a6.4 6.4 0 0 1 9 0"/><path d="M5 4a10 10 0 0 1 14 0"/>') }}
+    </div>
+
+    <div class="so-nav-group">
+      <div class="so-nav-h">RF · Space · Sea</div>
+      {{ item('/adsb', 'ADS-B', '<path d="M21 15.5l-8-4.5V5a1.5 1.5 0 0 0-3 0v6l-8 4.5V17l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-4.5l8 2.5z"/>') }}
+      {{ item('/rf', 'RF Layers', '<path d="M2 12h3l2-6 3 12 3-9 2 5 2-2h5"/>') }}
+      {{ item('/orbital', 'Orbital', '<circle cx="12" cy="12" r="2.5"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(-30 12 12)"/>') }}
+      {{ item('/sdr', 'SDR / Radio', '<path d="M5 19a10 10 0 0 1 0-14"/><path d="M8.5 15.5a5 5 0 0 1 0-7"/><circle cx="12" cy="12" r="1.5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/>') }}
+      {{ item('/maritime', 'Maritime', '<path d="M3 18c2 1.3 4 1.3 6 0s4-1.3 6 0 4 1.3 6 0"/><path d="M5 15l-1-5h16l-2 5"/><path d="M12 10V4l4 3"/>') }}
+    </div>
+
+    <div class="so-nav-group">
+      <div class="so-nav-h">Investigate</div>
+      {{ item('/cases', 'Cases', '<path d="M3 7h18v13H3z"/><path d="M8 7V4h8v3"/>') }}
+      {{ item('/graph', 'Graph', '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="9" cy="18" r="2.5"/><path d="M8.3 7l7.4.6M7 8.4l1.4 7.2M16.3 9.8l-5.6 6.4"/>') }}
+      {{ item('/timeline', 'Timeline', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>') }}
+      {{ item('/monitor', 'Area Monitor', '<path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/>') }}
+      {{ item('/watchlist', 'Watchlist', '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>') }}
+      {{ item('/profiles', 'Profiles', '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>') }}
+      {{ item('/social', 'OSINT Tools', '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>') }}
+    </div>
+  </nav>
+
+  <div class="so-side-foot">
+    {{ item('/settings', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/>') }}
+    <div class="so-status" data-so-live>
+      <span class="so-live-dot"></span>
+      <div><div class="so-status-t">Backend</div><div class="so-status-s" data-so-live-text>connecting…</div></div>
+    </div>
+  </div>
+</aside>
+<div class="so-side-scrim" id="so-side-scrim" hidden></div>

@@ -1,0 +1,483 @@
+{% extends "base.html" %}
+{% block title %}Settings — SignalOps{% endblock %}
+{% block extra_style %}
+.set-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:980px){.set-grid{grid-template-columns:1fr}}
+.key-group{margin-bottom:18px}
+.key-group:last-child{margin-bottom:0}
+.key-group-hdr{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:2.5px;
+  color:var(--tm);text-transform:uppercase;padding-bottom:8px;margin-bottom:6px;border-bottom:1px solid var(--b)}
+.key-row{display:grid;grid-template-columns:210px minmax(0,1fr) auto;gap:10px;align-items:center;
+  padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.03)}
+.key-row:last-child{border-bottom:none}
+@media (max-width:720px){.key-row{grid-template-columns:1fr}}
+.key-label{display:flex;align-items:center;gap:8px;min-width:0}
+.key-dot{width:8px;height:8px;border-radius:50%;background:var(--tm);flex-shrink:0}
+.key-dot.on{background:var(--g);box-shadow:0 0 8px var(--g)}
+.key-name{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:600;color:var(--t);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.key-name a{color:inherit;text-decoration:none}
+.key-name a:hover{color:var(--pl)}
+.key-src{font-size:9px;letter-spacing:1px;padding:1px 6px;border-radius:3px;flex-shrink:0}
+.key-input-wrap{position:relative;min-width:0}
+.key-input-wrap input.has-eye{padding-right:34px}
+.key-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;
+  color:var(--tm);cursor:pointer;font-size:13px;padding:4px}
+.key-eye:hover{color:var(--pl)}
+.key-actions{display:flex;gap:6px;justify-content:flex-end}
+.btn-sm{font-size:11px;padding:6px 10px;letter-spacing:1px}
+.btn:disabled{opacity:.6;cursor:default}
+.key-msg{grid-column:1/-1;font-size:11px;display:none}
+.key-msg.ok{color:var(--g)}.key-msg.err{color:var(--danger)}.key-msg.info{color:var(--td)}
+.sum-num{font-family:'Rajdhani',sans-serif;font-size:34px;font-weight:700;color:var(--g);line-height:1}
+.sum-sub{font-size:10px;color:var(--tm);letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+.mono-box{font-size:11px;color:var(--td);line-height:1.9;font-family:'JetBrains Mono',monospace;word-break:break-all}
+details.env-tpl summary{cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;
+  letter-spacing:2px;color:var(--td);text-transform:uppercase;list-style:none}
+details.env-tpl summary::-webkit-details-marker{display:none}
+details.env-tpl summary::before{content:'▸ ';color:var(--p)}
+details.env-tpl[open] summary::before{content:'▾ '}
+/* sağlayıcı sağlığı rozeti */
+.hl-badge{font-size:9px;letter-spacing:1px;padding:1px 6px;border-radius:3px;flex-shrink:0;cursor:help;font-weight:700}
+/* Network / OPSEC */
+.net-modes{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.net-opt{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--b);border-radius:6px;
+  cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;color:var(--td);letter-spacing:.5px}
+.net-opt:hover{border-color:rgba(138, 122, 184,0.3)}
+.net-opt.on{border-color:rgba(116, 176, 149,0.35);color:var(--t);background:rgba(116, 176, 149,0.04)}
+.net-opt input{width:auto;margin:0;accent-color:var(--g)}
+.net-opt small{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);font-weight:400}
+.net-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.net-row .btn{flex:1;min-width:90px}
+.net-kv{font-size:11px;color:var(--td);line-height:1.8;font-family:'JetBrains Mono',monospace;word-break:break-all}
+.net-kv b{color:var(--t);font-weight:500}
+.net-msg{font-size:11px;margin-top:8px;line-height:1.6;display:none}
+.net-msg.ok{color:var(--g)}.net-msg.err{color:var(--danger)}.net-msg.info{color:var(--td)}
+.net-hint{font-size:10px;color:var(--tm);line-height:1.6;margin-top:10px}
+.net-warn{font-size:10.5px;color:var(--warn);line-height:1.6;margin-top:10px;padding:8px 10px;
+  border:1px solid rgba(201, 161, 90,0.2);border-radius:6px;background:rgba(201, 161, 90,0.04)}
+.net-log{font-size:10px;color:var(--tm);font-family:'JetBrains Mono',monospace;line-height:1.5;margin-top:6px;
+  max-height:70px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+{% endblock %}
+{% block content %}
+<div class="section-hdr">Configuration</div>
+
+<div class="set-grid">
+  <!-- API KEYS -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+      <div class="section-hdr" style="font-size:13px;margin-bottom:0">API Keys</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="loadKeys()">↻ Reload</button>
+        <button class="btn btn-p btn-sm" id="save-all" onclick="saveAll()">Save All</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--td);margin-bottom:16px;line-height:1.7">
+      Anahtarlar bu bilgisayarda saklanır ve kaydettiğin anda devreye girer, yeniden başlatmaya gerek yok.
+      Boş bıraktığın gizli alan değişmez.
+      <span style="color:var(--tm)">Kaynak: <b>UI</b> = buradan girildi · <b>ENV</b> = .env dosyasından.</span>
+    </div>
+    <div id="keys-root"><div style="color:var(--tm);font-size:12px;padding:20px 0;text-align:center">Loading…</div></div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div>
+    <div class="card">
+      <div class="section-hdr" style="font-size:13px;margin-bottom:12px">Status</div>
+      <div style="display:flex;gap:22px">
+        <div><div class="sum-num" id="sum-on">—</div><div class="sum-sub">Configured</div></div>
+        <div><div class="sum-num" id="sum-total" style="color:var(--td)">—</div><div class="sum-sub">Total</div></div>
+      </div>
+      <div class="risk-bar" style="margin-top:12px"><div class="risk-fill" id="sum-bar" style="width:0;background:var(--g)"></div></div>
+      <div style="font-size:10px;color:var(--tm);letter-spacing:1.5px;margin-top:14px;text-transform:uppercase">Stored in</div>
+      <div class="mono-box" id="cfg-path">—</div>
+      <div style="font-size:10px;color:var(--tm);margin-top:8px;line-height:1.6">Bu dosyayı paylaşma, git'e ekleme.</div>
+    </div>
+
+    <div class="card" id="net-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">
+        <div class="section-hdr" style="font-size:13px;margin-bottom:0">Network / OPSEC</div>
+        <span class="key-src badge-ok" id="net-badge">Direct</span>
+      </div>
+      <div class="net-modes" id="net-modes">
+        <label class="net-opt" data-mode="off"><input type="radio" name="net-mode" value="off"> Direct <small>no proxy</small></label>
+        <label class="net-opt" data-mode="tor"><input type="radio" name="net-mode" value="tor"> Tor <small>socks5h</small></label>
+        <label class="net-opt" data-mode="custom"><input type="radio" name="net-mode" value="custom"> Custom proxy <small>socks5 / http</small></label>
+      </div>
+      <input id="net-url" type="text" autocomplete="off" spellcheck="false" maxlength="200"
+             placeholder="socks5h://127.0.0.1:1080" style="display:none;margin-bottom:6px">
+      <button class="btn btn-p btn-sm" id="net-apply" style="width:100%" onclick="netApply()">Apply</button>
+
+      <div style="font-size:10px;color:var(--tm);letter-spacing:1.5px;margin-top:14px;text-transform:uppercase">Tor service</div>
+      <div class="net-kv" id="net-tor">—</div>
+      <div class="risk-bar" id="net-boot-wrap" style="margin-top:6px;display:none"><div class="risk-fill" id="net-boot" style="width:0;background:var(--p)"></div></div>
+      <div class="net-log" id="net-log" style="display:none"></div>
+      <div class="net-row">
+        <button class="btn btn-g btn-sm" id="net-tor-start" onclick="torStart()">Start Tor</button>
+        <button class="btn btn-outline btn-sm" id="net-tor-stop" onclick="torStop()">Stop Tor</button>
+      </div>
+      <div class="net-row">
+        <button class="btn btn-outline btn-sm" id="net-check" onclick="netCheck()">Check exit IP</button>
+      </div>
+      <div class="net-kv" id="net-exit" style="margin-top:8px"></div>
+      <div class="net-msg" id="net-msg"></div>
+      <div id="net-hints"></div>
+      <div class="net-warn">
+        Some APIs block or rate-limit Tor exits (Shodan and Cloudflare-fronted services).
+        Failing providers are paused automatically and the scan continues with the remaining sources.
+        <span style="color:var(--tm)">Tarayıcıdaki harita/kamera önizlemeleri proxy'den geçmez.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-hdr" style="font-size:13px;margin-bottom:10px">Startup</div>
+      <div class="mono-box">
+        pip install -r requirements.txt<br>
+        python3 app_v2.py<br>
+        <span style="color:var(--tm)"># → http://localhost:8080 (sadece bu bilgisayar)</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <details class="env-tpl">
+        <summary>.env alternative</summary>
+        <div style="font-size:11px;color:var(--td);margin:10px 0;line-height:1.7">
+          İstersen anahtarları <code>.env</code> dosyasına da yazabilirsin. Burada girilen değer .env'dekinin önüne geçer.
+        </div>
+        <textarea readonly rows="12" id="env-tpl" style="font-size:11px;line-height:1.7;color:var(--td);resize:vertical;cursor:text"></textarea>
+        <button class="btn btn-g btn-sm" onclick="copyEnv()" style="width:100%;margin-top:10px">Copy Template</button>
+      </details>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let KEYS = [];   // backend'den gelen anahtar listesi (düz)
+
+async function loadKeys() {
+  const root = document.getElementById('keys-root');
+  try {
+    const r = await fetch('/api/settings/keys');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    KEYS = [];
+    SEEN_HEALTH = new Set();
+    const seenTest = new Set();
+    root.innerHTML = (d.groups || []).map(g => `
+      <div class="key-group">
+        <div class="key-group-hdr">${escapeHtml(g.name)}</div>
+        ${g.keys.map(k => {
+          KEYS.push(k);
+          // Çok alanlı sağlayıcılarda (WiGLE, Censys, FOFA) Test butonu son satırda
+          const lastOfProvider = !g.keys.slice(g.keys.indexOf(k) + 1).some(x => x.provider === k.provider);
+          const showTest = k.testable && lastOfProvider && !seenTest.has(k.provider);
+          if (showTest) seenTest.add(k.provider);
+          return rowHtml(k, showTest);
+        }).join('')}
+      </div>`).join('');
+    const on = KEYS.filter(k => k.configured).length;
+    document.getElementById('sum-on').textContent = on;
+    document.getElementById('sum-total').textContent = KEYS.length;
+    document.getElementById('sum-bar').style.width = (KEYS.length ? Math.round(on / KEYS.length * 100) : 0) + '%';
+    document.getElementById('cfg-path').textContent = d.config_path || '—';
+    document.getElementById('env-tpl').value = KEYS.map(k => k.id + '=').join('\n');
+    root.querySelectorAll('input[data-key]').forEach(inp => {
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveOne(inp.dataset.key); });
+    });
+  } catch (e) {
+    root.innerHTML = `<div style="color:var(--danger);font-size:12px">Ayarlar yüklenemedi: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function srcBadge(k) {
+  if (k.source === 'ui')      return '<span class="key-src badge-info">UI</span>';
+  if (k.source === 'env')     return '<span class="key-src badge-warn">ENV</span>';
+  if (k.source === 'default') return '<span class="key-src badge-ok">DEFAULT</span>';
+  return '';
+}
+
+const HL_LABEL = {quota: 'QUOTA', auth: 'AUTH', cooldown: 'COOLDOWN', down: 'DOWN'};
+const HL_HINT  = {quota: 'Kota bitti', auth: 'Anahtar reddedildi', cooldown: 'Hız sınırı', down: 'Servis erişilemiyor'};
+function fmtUntil(ts) {
+  if (!ts) return 'until the key changes';
+  const d = new Date(ts * 1000);
+  return 'until ' + d.toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+}
+function healthBadge(h) {
+  if (!h || !h.state || h.state === 'ok') return '';
+  const cls = h.state === 'cooldown' ? 'badge-warn' : 'badge-err';
+  const tip = `${h.provider}: ${HL_HINT[h.state] || h.state} — ${h.reason || ''} (${fmtUntil(h.until)})`;
+  return `<span class="hl-badge ${cls}" title="${escapeHtml(tip)}">${HL_LABEL[h.state] || escapeHtml(h.state.toUpperCase())}</span>`;
+}
+let SEEN_HEALTH = new Set();
+
+function rowHtml(k, showTest) {
+  const id = escapeHtml(k.id);
+  const val = (!k.secret && k.display) ? k.display : '';
+  const ph  = k.secret ? (k.configured ? k.display : 'not set') : (k.display ? '' : 'not set');
+  // sağlık rozeti sağlayıcı başına bir kez (ilk satırda)
+  const hlFirst = !!(k.health && !SEEN_HEALTH.has(k.provider));
+  if (hlFirst) SEEN_HEALTH.add(k.provider);
+  return `
+  <div class="key-row" id="row-${id}">
+    <div class="key-label">
+      <span class="key-dot ${k.configured ? 'on' : ''}"></span>
+      <span class="key-name" title="${id}"><a href="${safeUrl(k.help_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(k.label)} ↗</a></span>
+      ${srcBadge(k)}
+      ${hlFirst ? healthBadge(k.health) : ''}
+    </div>
+    <div class="key-input-wrap">
+      <input data-key="${id}" class="${k.secret ? 'has-eye' : ''}" type="${k.secret ? 'password' : 'text'}"
+             autocomplete="off" spellcheck="false" value="${escapeHtml(val)}" placeholder="${escapeHtml(ph)}">
+      ${k.secret ? `<button class="key-eye" type="button" title="Show / hide" onclick="toggleEye('${id}')" aria-label="Show or hide key"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>` : ''}
+    </div>
+    <div class="key-actions">
+      <button class="btn btn-p btn-sm" onclick="saveOne('${id}')">Save</button>
+      ${hlFirst ? `<button class="btn btn-outline btn-sm" title="Engeli kaldır, bir sonraki taramada yeniden dene" onclick="retryProvider('${escapeHtml(k.health.provider)}','${id}')">Retry</button>` : ''}
+      ${showTest ? `<button class="btn btn-g btn-sm" onclick="testKey('${escapeHtml(k.provider)}','${id}')">Test</button>` : ''}
+      ${k.source === 'ui' ? `<button class="btn btn-outline btn-sm" title="Arayüzden girilen değeri sil" onclick="clearOne('${id}')">✕</button>` : ''}
+    </div>
+    <div class="key-msg" id="msg-${id}"></div>
+  </div>`;
+}
+
+function inputFor(id) { return document.querySelector(`input[data-key="${CSS.escape(id)}"]`); }
+
+function toggleEye(id) {
+  const inp = inputFor(id);
+  if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function showMsg(id, text, cls) {
+  const el = document.getElementById('msg-' + id);
+  if (!el) return;
+  el.textContent = text; el.className = 'key-msg ' + cls; el.style.display = 'block';
+}
+
+async function postKeys(values) {
+  const r = await fetch('/api/settings/keys', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({values})
+  });
+  let d = {};
+  try { d = await r.json(); } catch (_) {}
+  if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+  return d;
+}
+
+// undefined = değişiklik yok · null = UI değerini sil · string = yeni değer
+function collectValue(id) {
+  const inp = inputFor(id);
+  if (!inp) return undefined;
+  const k = KEYS.find(x => x.id === id) || {};
+  const v = inp.value.trim();
+  if (!v) return (!k.secret && k.source === 'ui') ? null : undefined;
+  if (!k.secret && v === k.display) return undefined;
+  return v;
+}
+
+async function saveOne(id) {
+  const v = collectValue(id);
+  if (v === undefined) { showMsg(id, 'Değişiklik yok', 'info'); return; }
+  try {
+    await postKeys({[id]: v});
+    await loadKeys();
+    showMsg(id, '✓ Kaydedildi ve devreye alındı', 'ok');
+  } catch (e) { showMsg(id, '✗ ' + e.message, 'err'); }
+}
+
+async function clearOne(id) {
+  const k = KEYS.find(x => x.id === id) || {};
+  if (!confirm(`${k.label || id}: arayüzden girilen değer silinsin mi?`)) return;
+  try {
+    await postKeys({[id]: null});
+    await loadKeys();
+    const now = KEYS.find(x => x.id === id) || {};
+    showMsg(id, now.source === 'env' ? 'Silindi, şimdi .env değeri kullanılıyor' : 'Silindi', 'info');
+  } catch (e) { showMsg(id, '✗ ' + e.message, 'err'); }
+}
+
+async function saveAll() {
+  const values = {};
+  KEYS.forEach(k => { const v = collectValue(k.id); if (v !== undefined) values[k.id] = v; });
+  const btn = document.getElementById('save-all');
+  if (!Object.keys(values).length) {
+    btn.textContent = 'No changes'; setTimeout(() => { btn.textContent = 'Save All'; }, 1500); return;
+  }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const d = await postKeys(values);
+    await loadKeys();
+    (d.changed || []).forEach(id => showMsg(id, '✓ Kaydedildi', 'ok'));
+    btn.textContent = '✓ Saved';
+  } catch (e) {
+    btn.textContent = 'Error';
+    alert('Kaydedilemedi: ' + e.message);
+  }
+  setTimeout(() => { btn.textContent = 'Save All'; btn.disabled = false; }, 1500);
+}
+
+async function testKey(provider, rowId) {
+  showMsg(rowId, 'Testing…', 'info');
+  try {
+    const r = await fetch('/api/settings/test', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({provider})
+    });
+    let d = {};
+    try { d = await r.json(); } catch (_) {}
+    showMsg(rowId, (d.ok ? '✓ ' : '✗ ') + (d.message || d.error || ('HTTP ' + r.status)), d.ok ? 'ok' : 'err');
+  } catch (e) { showMsg(rowId, '✗ ' + e.message, 'err'); }
+}
+
+async function retryProvider(provider, rowId) {
+  try {
+    const r = await fetch('/api/providers/health/reset', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({provider})
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    await loadKeys();
+    showMsg(rowId, '↻ ' + provider + ' yeniden etkin — bir sonraki taramada denenecek', 'info');
+  } catch (e) { showMsg(rowId, '✗ ' + e.message, 'err'); }
+}
+
+/* ── Network / OPSEC ── */
+let NET = null, netPollTimer = null;
+function netMsg(text, cls) {
+  const el = document.getElementById('net-msg');
+  el.textContent = text || ''; el.className = 'net-msg ' + (cls || 'info'); el.style.display = text ? 'block' : 'none';
+}
+async function netPost(url, body) {
+  const r = await fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})});
+  const d = await r.json().catch(() => ({}));
+  return {ok: r.ok && d.ok !== false, d, status: r.status};
+}
+function netSelected() { const x = document.querySelector('input[name="net-mode"]:checked'); return x ? x.value : 'off'; }
+function netSyncOpts() {
+  const m = netSelected();
+  document.querySelectorAll('.net-opt').forEach(o => o.classList.toggle('on', o.dataset.mode === m));
+  document.getElementById('net-url').style.display = m === 'custom' ? 'block' : 'none';
+}
+function renderNet(s, keepSelection) {
+  NET = s;
+  if (!keepSelection) {
+    const r = document.querySelector(`input[name="net-mode"][value="${s.mode}"]`);
+    if (r) r.checked = true;
+    if (s.mode === 'custom' && s.custom_url && !document.getElementById('net-url').value) document.getElementById('net-url').value = s.custom_url;
+  }
+  netSyncOpts();
+  const b = document.getElementById('net-badge');
+  b.textContent = s.mode === 'tor' ? 'TOR' : s.mode === 'custom' ? 'PROXY' : 'DIRECT';
+  b.className = 'key-src ' + (s.mode === 'off' ? 'badge-ok' : 'badge-info');
+  b.title = s.proxy_url || 'Direct connection';
+  const t = s.tor || {};
+  const state = t.ours ? (t.bootstrap >= 100 ? 'running (SignalOps)' : 'bootstrapping ' + t.bootstrap + '%')
+              : t.system ? 'system tor on :' + t.port : 'stopped';
+  document.getElementById('net-tor').innerHTML =
+    `State: <b>${escapeHtml(state)}</b>` +
+    (t.pid ? ` · pid <b>${t.pid}</b>` : '') + (t.port ? ` · port <b>${t.port}</b>` : '') +
+    `<br>Binary: <b>${t.binary ? escapeHtml(t.binary) : 'not found'}</b>` +
+    (s.proxy_url ? `<br>Proxy: <b>${escapeHtml(s.proxy_url)}</b>` : '') +
+    `<br>AIS stream: <b>${escapeHtml((s.ais || {}).note || '—')}</b>`;
+  const showBoot = t.ours && t.bootstrap < 100;
+  document.getElementById('net-boot-wrap').style.display = t.ours ? 'block' : 'none';
+  document.getElementById('net-boot').style.width = (t.ours ? t.bootstrap : 0) + '%';
+  document.getElementById('net-boot').style.background = t.bootstrap >= 100 ? 'var(--g)' : 'var(--p)';
+  const log = document.getElementById('net-log');
+  log.style.display = (showBoot || t.error) && (t.last_log_lines || []).length ? 'block' : 'none';
+  log.textContent = (t.last_log_lines || []).join('\n');
+  document.getElementById('net-tor-start').disabled = !!(t.ours || t.system);
+  document.getElementById('net-tor-stop').disabled = !t.ours;
+  const hints = [];
+  if (!s.pysocks) hints.push('<span style="color:var(--warn)">PySocks missing</span> — Tor / SOCKS cannot be enabled. <code>pip install PySocks</code>');
+  if (!t.binary && !t.system) hints.push('<span style="color:var(--warn)">tor not installed</span> — <code>' + escapeHtml(t.install_hint || 'install tor') + '</code>');
+  if (s.error) hints.push('<span style="color:var(--danger)">' + escapeHtml(s.error) + '</span>');
+  (s.warnings || []).forEach(w => hints.push('<span style="color:var(--warn)">' + escapeHtml(w) + '</span>'));
+  document.getElementById('net-hints').innerHTML = hints.map(h => `<div class="net-hint">${h}</div>`).join('');
+  const lr = (s.check || {}).last_result;
+  if (lr) renderExit(lr);
+}
+function renderExit(r) {
+  const el = document.getElementById('net-exit');
+  if (!r.ok) { el.innerHTML = `<span style="color:var(--danger)">Check failed: ${escapeHtml(r.error || '?')}</span>`; return; }
+  el.innerHTML = `Exit IP: <b>${escapeHtml(r.IP || '?')}</b> ` +
+    (r.IsTor ? '<span class="key-src badge-ok">TOR ✓</span>' : '<span class="key-src badge-warn">NOT TOR</span>') +
+    ` <span style="color:var(--tm)">${r.ms ? r.ms + ' ms' : ''}</span>`;
+}
+async function loadNet(keepSelection) {
+  try {
+    const r = await fetch('/api/net/status', {cache: 'no-store'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const s = await r.json();
+    renderNet(s, keepSelection);
+    return s;
+  } catch (e) { netMsg('Network status unavailable: ' + e.message, 'err'); return null; }
+}
+function netPoll(on) {
+  clearInterval(netPollTimer); netPollTimer = null;
+  if (!on) return;
+  netPollTimer = setInterval(async () => {
+    const s = await loadNet(true);
+    const t = (s && s.tor) || {};
+    if (!s || !t.ours || t.bootstrap >= 100) {
+      netPoll(false);
+      if (t.ours && t.bootstrap >= 100) netMsg('✓ Tor bootstrapped (100%)', 'ok');
+      else if (s && !t.running) netMsg('✗ Tor exited — see log above', 'err');
+    }
+  }, 2000);
+}
+async function netApply() {
+  const mode = netSelected();
+  const body = {mode};
+  if (mode === 'custom') body.url = document.getElementById('net-url').value.trim();
+  const btn = document.getElementById('net-apply'); btn.disabled = true;
+  try {
+    const {ok, d} = await netPost('/api/net/mode', body);
+    if (!ok) { netMsg('✗ ' + (d.error || 'Failed'), 'err'); await loadNet(true); return; }
+    renderNet(d.status);
+    netMsg(mode === 'off' ? '✓ Direct connection' : '✓ Outbound API traffic now goes via ' + (d.status.proxy_url || mode), 'ok');
+    if (window.soNavRefresh) window.soNavRefresh();
+  } catch (e) { netMsg('✗ ' + e.message, 'err'); }
+  finally { btn.disabled = false; }
+}
+async function torStart() {
+  const btn = document.getElementById('net-tor-start'); btn.disabled = true;
+  netMsg('Starting Tor…', 'info');
+  try {
+    const {ok, d} = await netPost('/api/net/tor/start');
+    if (d.status) renderNet(d.status, true);
+    if (!ok) { netMsg('✗ ' + (d.error || 'Failed') + (d.install_hint ? ' — ' + d.install_hint : ''), 'err'); btn.disabled = false; return; }
+    if (d.system) netMsg('✓ Using system tor on port ' + d.port, 'ok');
+    else { netMsg('Tor is bootstrapping…', 'info'); netPoll(true); }
+  } catch (e) { netMsg('✗ ' + e.message, 'err'); btn.disabled = false; }
+}
+async function torStop() {
+  try {
+    const {ok, d} = await netPost('/api/net/tor/stop');
+    netPoll(false);
+    if (d.status) renderNet(d.status, true);
+    netMsg(ok ? '✓ Tor stopped' : '✗ ' + (d.error || 'Failed'), ok ? 'ok' : 'err');
+  } catch (e) { netMsg('✗ ' + e.message, 'err'); }
+}
+async function netCheck() {
+  const btn = document.getElementById('net-check'); btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    const {d} = await netPost('/api/net/check');
+    renderExit(d);
+  } catch (e) { renderExit({ok: false, error: e.message}); }
+  finally { btn.disabled = false; btn.textContent = 'Check exit IP'; }
+}
+document.querySelectorAll('input[name="net-mode"]').forEach(r => r.addEventListener('change', netSyncOpts));
+document.getElementById('net-url').addEventListener('keydown', e => { if (e.key === 'Enter') netApply(); });
+
+function copyEnv() {
+  const ta = document.getElementById('env-tpl');
+  navigator.clipboard.writeText(ta.value).then(() => alert('Copied to clipboard!'));
+}
+
+loadKeys();
+loadNet().then(s => { if (s && s.tor && s.tor.ours && s.tor.bootstrap < 100) netPoll(true); });
+</script>
+{% endblock %}

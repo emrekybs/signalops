@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+{% block title %}Overview · SignalOps{% endblock %}
+{% block topbar %}
+<span class="so-top-sub" id="ov-geo"></span>
+<div class="ov-top-right">
+  <a class="so-btn so-btn-solid" href="/map-w">New scan</a>
+</div>
+{% endblock %}
+{% block extra_style %}
+.ov{max-width:1280px;display:flex;flex-direction:column;gap:18px}
+.ov-top-right{margin-left:auto;display:flex;gap:10px;align-items:center}
+.ov-top-right a.so-btn{text-decoration:none}
+.ov-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ov-head h2{font-size:15px;font-weight:600;margin:0}
+.ov-alert{display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid #3A3020;background:#17140F;border-radius:10px;color:#D9BD8C;font-size:13px}
+.ov-alert[hidden],.ov-empty[hidden]{display:none}
+.ov-alert a{margin-left:auto;color:#D9BD8C;text-decoration:underline}
+.ov-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.ov-stat{background:var(--so-s1);border:1px solid var(--so-line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.ov-stat .l{font-size:13px;color:var(--so-t2)}
+.ov-stat .row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;min-height:40px}
+.ov-stat .n{font-size:30px;font-weight:600;line-height:1.1}
+.ov-stat .n small{font-size:18px;color:var(--so-t3);font-weight:500}
+.ov-stat .s{font-size:12px;color:#9A97A8}
+.ov-bars{display:flex;gap:3px;align-items:flex-end}
+.ov-bars span{width:6px;height:22px;border-radius:2px;background:#2A2833}
+.ov-row{display:flex;flex-wrap:wrap;gap:16px}
+.ov-card{background:var(--so-s1);border:1px solid var(--so-line);border-radius:12px;padding:18px 20px;min-width:0}
+.ov-card h3{font-size:14px;font-weight:600;margin:0}
+.ov-card-h{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.ov-card-h a{margin-left:auto;font-size:12px;color:var(--so-acc-t);text-decoration:none}
+.ov-card-h a:hover{color:#D3CBEA}
+.ov-wide{flex:999 1 560px}
+.ov-narrow{flex:1 1 340px}
+.ov-legend{margin-left:auto;display:flex;gap:16px;font-size:12px;color:var(--so-t2)}
+.ov-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:0}
+.ov-map{position:relative;width:100%;aspect-ratio:2.4/1}
+.ov-map .d{position:absolute;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#2E2B3A}
+.ov-spot{position:absolute;width:0;height:0}
+.ov-spot span{position:absolute;border-radius:50%}
+.ov-spot .lb{border-radius:0;left:12px;top:-22px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#C8C4D6;white-space:nowrap}
+.ov-empty{position:absolute;inset:auto 0 12px 0;text-align:center;font-size:12px;color:#85829A}
+.ov-ev{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border-radius:8px}
+.ov-ev:hover{background:var(--so-s2)}
+.ov-ev .tg{flex:0 0 auto;width:38px;padding-top:2px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500}
+.ov-ev .tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.ov-ev .t1{font-size:13px;color:var(--so-t)}
+.ov-ev .t2{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9A97A8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ov-ev .ago{font-size:12px;color:#9A97A8;white-space:nowrap}
+.ov-note{font-size:12px;color:#85829A;padding:8px 12px}
+.ov-tbl{overflow-x:auto}
+.ov-tbl table{min-width:480px}
+.ov-tbl td,.ov-tbl th{padding:9px 0 !important}
+.ov-st{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#C8C4D6}
+.ov-st i{width:6px;height:6px;border-radius:50%}
+.ov-qs{background:#17141F !important;border-color:#2A2338 !important;display:flex;flex-direction:column;gap:14px}
+.ov-qs .g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.ov-qs label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--so-t2)}
+.ov-qs input{height:38px;font-family:'IBM Plex Mono',monospace !important;background:#0E0D13 !important;border-color:#2A2338 !important}
+.ov-qs .bt{display:flex;gap:10px}
+.ov-qs .bt .so-btn-solid{flex:1;justify-content:center}
+.ov-qs p{margin:0;font-size:12px;color:#9A97A8}
+@media (max-width:600px){.ov-spot .lb{display:none}#ov-geo{display:none}}
+{% endblock %}
+
+{% block content %}
+<div class="ov">
+  <div class="ov-alert" id="ov-missing" hidden>
+    <svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5v.01"/></svg>
+    <span id="ov-missing-t"></span><a href="/settings">Add keys</a>
+  </div>
+
+  <div class="ov-head"><h2>Signal overview</h2></div>
+
+  <div class="ov-stats">
+    <div class="ov-stat">
+      <span class="l">Threat indicators</span>
+      <div class="row"><span class="n" id="st-threat">—</span></div>
+      <span class="s" id="st-threat-s">Rogue APs, trackers, IMSI suspects, jamming</span>
+    </div>
+    <div class="ov-stat">
+      <span class="l">Saved scans</span>
+      <div class="row"><span class="n" id="st-scans">—</span><svg id="st-scans-spark" width="84" height="28" viewBox="0 0 84 28" fill="none" aria-hidden="true"></svg></div>
+      <span class="s" id="st-scans-s">—</span>
+    </div>
+    <div class="ov-stat">
+      <span class="l">Satellites tracked</span>
+      <div class="row"><span class="n" id="st-sats">—</span></div>
+      <span class="s" id="st-sats-s">—</span>
+    </div>
+    <div class="ov-stat">
+      <span class="l">Active sources</span>
+      <div class="row"><span class="n" id="st-src">—</span><div class="ov-bars" id="st-src-bars" aria-hidden="true"></div></div>
+      <span class="s" id="st-src-s">—</span>
+    </div>
+  </div>
+
+  <div class="ov-row">
+    <section class="ov-card ov-wide" aria-label="Collection activity">
+      <div class="ov-card-h">
+        <h3>Collection activity</h3>
+        <div class="ov-legend"><span><i style="background:#9A8CC4"></i>Scan area</span><span><i style="background:#C77B7B"></i>Watchlist hit</span></div>
+      </div>
+      <div class="ov-map" id="ov-map"><div class="ov-empty" id="ov-map-empty" hidden>No saved scans yet. Save a scan to a case and it appears here.</div></div>
+    </section>
+
+    <section class="ov-card ov-narrow" aria-label="Recent events" style="padding:18px 8px 10px">
+      <div class="ov-card-h" style="padding:0 12px"><h3>Recent events</h3><a href="/watchlist">View all</a></div>
+      <div id="ov-events"><div class="ov-note">Loading…</div></div>
+    </section>
+  </div>
+
+  <div class="ov-row">
+    <section class="ov-card ov-wide" aria-label="Source health">
+      <div class="ov-card-h"><h3>Source health</h3><a href="/settings">Manage keys</a></div>
+      <div class="ov-tbl">
+        <table>
+          <thead><tr><th>Source</th><th>Domain</th><th>Status</th><th style="text-align:right">Last OK</th></tr></thead>
+          <tbody id="ov-src"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="ov-card ov-narrow ov-qs" aria-label="Quick scan">
+      <h3>Quick scan</h3>
+      <div class="g2">
+        <label>Latitude<input id="qs-lat" type="number" step="any" placeholder="41.00820"></label>
+        <label>Longitude<input id="qs-lon" type="number" step="any" placeholder="28.97840"></label>
+      </div>
+      <div class="bt">
+        <button type="button" class="so-btn so-btn-solid" onclick="quickScan()">Scan area</button>
+        <button type="button" class="so-btn so-btn-ghost" onclick="geoMe()">
+          <svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>My location</button>
+      </div>
+      <p>Opens the SIGINT map at this point. WiFi, BT and cell sources cover the area around it; scanner sources are country-wide.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+var MASK = ["000000000000000110000111111000000111111111000000000000000000001000000111111111110100010000000000","000001111100000001111011011111000111111111000000000001110000000000101111111111111111111111100100","001111111111111111111111111111111111111111111111111100000001000000010000000000000000000000000000","001001111111111111111111000001100011100000000000001110111111111111111111111111111111111111111111","000111101011111111111110000110000000000000000000011110001111111111111111111111111111111110011000","000001000000011111111111000011110000000000000010001100111111111111111111111111111111100000100000","000000000000001111111111110111111000000000000101001111111111111111111111111111111111110000100000","000000000000001111111111111111000000000000000000111111111111111111111111111111111111100000000000","000000000000000111111111111111100000000000000001111111111111111111111111111111111111100000000000","000000000000000111111111111110000000000000000011110111110001111111111111111111111111001000000000","000000000000000111111111111100000000000000000011001001011111111111111111111111111100010000000000","000000000000000111111111111100000000000000000010011000011111111111111111111111110010110000000000","000000000000000001111111111000000000000000000011111000000111111111111111111111110001000000000000","000000000000000000111111010000000000000000000111111111111111111111111111111111110000000000000000","000000000000000000011100001000000000000000001111111111111011101111111111111111110000000000000000","000000000000000000001100000000000000000000001111111111111011111100111111111111100000000000000000","000000100000000000001100100100000000000000001111111111111101111000011110011100000000000000000000","000000000000000000000111000000000000000000001111111111111101110000001100011110001000000000000000","000000000000000000000000110000000000000000001111111111111110100000001000001110000000000000000000","000000000000000000000000010011100000000000001111111111111111110000001000000010000000000000000000","000000000000000000000000000111110000000000000111111111111111100000000100000000000000000000000000","000000000000000000000000000111111100000000000000000111111111100000000000000100100000000000000000","000000000000000000000000000111111100000000000000001111111110000000000000001101100000000000000000","000000000000000000000000000111111111100000000000000111111110000000000000000100101011110010000000","000000000000000000000000001111111111111000000000000111111100000000000000000010000000011001000000","000000000000000000000000000111111111110000000000000011111110000000000000000000000000000100000000","000000000000000000000000000011111111110000000000000111111110000000000000000000000001000000000000","000000000000000000000000000011111111110000000000000111111110100000000000000000000111101000000000","000000000000000000000000000001111111100000000000000111111000100000000000000000001111111000000000","000000000000000000000000000001111111000000000000000011111000100000000000000000111111111100000000","000000000000000000000000000001111110000000000000000011111000000000000000000000111111111110000000","000000000000000000000000000001111110000000000000000001110000000000000000000000011111111110000000","000000000000000000000000000001111100000000000000000001100000000000000000000000011000111100000000","000000000000000000000000000001111000000000000000000000000000000000000000000000000000011100000010","000000000000000000000000000011100000000000000000000000000000000000000000000000000000000000000010","000000000000000000000000000001100000000000000000000000000000000000000000000000000000000000000100","000000000000000000000000000011000000000000000000000000000000000000000000000000000000000000000000","000000000000000000000000000011000000000000000000000000000000000000100000000000000000000000000000","000000000000000000000000000011000000000000000000000000000000000000000000000000000000000000000000","000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"];
+var mapEl = document.getElementById('ov-map');
+var frag = document.createDocumentFragment();
+MASK.forEach(function (row, r) {
+  for (var c = 0; c < row.length; c++) if (row[c] === '1') {
+    var d = document.createElement('span'); d.className = 'd';
+    d.style.left = ((c + 0.5) / 96 * 100).toFixed(3) + '%';
+    d.style.top = ((r + 0.5) / 40 * 100).toFixed(3) + '%';
+    frag.appendChild(d);
+  }
+});
+mapEl.appendChild(frag);
+
+function esc(s) { return window.escapeHtml ? escapeHtml(String(s == null ? '' : s)) : String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
+function ago(ts) {
+  if (!ts) return '';
+  var s = Math.max(0, Date.now() / 1000 - ts);
+  if (s < 60) return 'now';
+  if (s < 3600) return Math.round(s / 60) + ' min';
+  if (s < 86400) return Math.round(s / 3600) + ' h';
+  return Math.round(s / 86400) + ' d';
+}
+function getJSON(u) { return fetch(u, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); }
+
+function addSpot(lat, lon, label, alert, weight) {
+  if (lat == null || lon == null || lat > 75 || lat < -58) return;
+  var col = alert ? '199,123,123' : '154,140,196';
+  var k = Math.min(1.2, 0.55 + 0.12 * Math.log2(1 + (weight || 1)));
+  var r1 = Math.round(26 * k), r2 = Math.round(48 * k);
+  var el = document.createElement('div'); el.className = 'ov-spot';
+  el.style.left = ((lon + 180) / 360 * 100).toFixed(3) + '%';
+  el.style.top = ((75 - lat) / 133 * 100).toFixed(3) + '%';
+  el.innerHTML =
+    '<span style="left:' + (-r2 / 2) + 'px;top:' + (-r2 / 2) + 'px;width:' + r2 + 'px;height:' + r2 + 'px;background:rgba(' + col + ',.08);border:1px solid rgba(' + col + ',.18)"></span>' +
+    '<span style="left:' + (-r1 / 2) + 'px;top:' + (-r1 / 2) + 'px;width:' + r1 + 'px;height:' + r1 + 'px;background:rgba(' + col + ',.16)"></span>' +
+    '<span style="left:-4px;top:-4px;width:8px;height:8px;background:rgb(' + col + ')"></span>' +
+    (label ? '<span class="lb">' + esc(label) + '</span>' : '');
+  mapEl.appendChild(el);
+}
+
+/* ── Threat indicators (counters written by the scan pages) ── */
+(function () {
+  var agg = { rogue: 0, trackers: 0, imsi: 0, jamming: 0 };
+  try { var st = JSON.parse(localStorage.getItem('sigops_threat_agg') || 'null'); if (st) for (var k in agg) agg[k] = +st[k] || 0; } catch (e) {}
+  var total = agg.rogue + agg.trackers + agg.imsi + agg.jamming;
+  document.getElementById('st-threat').textContent = total;
+  document.getElementById('st-threat-s').textContent = total
+    ? agg.rogue + ' rogue AP · ' + agg.trackers + ' tracker · ' + agg.imsi + ' IMSI · ' + agg.jamming + ' jamming'
+    : 'No indicators in recent scans';
+  if (total) document.getElementById('st-threat-s').style.color = '#C99A9A';
+})();
+
+/* ── Status + source health ── */
+var DOMAIN = { 'WiGLE': 'WiFi · BT · Cell', 'OpenCellID': 'Cell towers', 'Shodan': 'IoT · Cameras', 'Censys': 'IoT · Hosts',
+  'ZoomEye': 'IoT · Cameras', 'FOFA': 'IoT · Cameras', 'Hunter.how': 'IoT · Hosts', 'Netlas': 'IoT · Hosts', 'LeakIX': 'Exposed services',
+  'CriminalIP': 'IP intel', 'BinaryEdge': 'IoT · Cameras', 'Windy': 'Webcams', 'AbuseIPDB': 'IP reputation', 'APRS.fi': 'APRS', 'Gemini': 'AI summary' };
+var DEG = { quota: 'Quota', auth: 'Auth error', cooldown: 'Cooling down', down: 'Unreachable' };
+var EVENTS = [];
+function renderEvents() {
+  var box = document.getElementById('ov-events');
+  EVENTS.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+  var list = EVENTS.slice(0, 7);
+  if (!list.length) { box.innerHTML = '<div class="ov-note">Nothing yet. Watchlist hits, saved scans and source problems show up here.</div>'; return; }
+  box.innerHTML = list.map(function (e) {
+    return '<div class="ov-ev"><span class="tg" style="color:' + e.c + '">' + esc(e.tag) + '</span>' +
+      '<div class="tx"><span class="t1">' + esc(e.title) + '</span><span class="t2">' + esc(e.meta) + '</span></div>' +
+      '<span class="ago">' + esc(ago(e.ts)) + '</span></div>';
+  }).join('');
+}
+
+Promise.all([getJSON('/api/status'), getJSON('/api/providers/health').catch(function () { return {}; })]).then(function (res) {
+  var d = res[0], h = res[1] || {};
+  var keyed = (d.active || []).filter(function (k) { return k !== 'Insecam' && k !== 'EarthCam'; });
+  var missing = d.missing || [];
+  var deg = d.degraded || {};
+  var total = keyed.length + missing.length;
+  document.getElementById('st-src').innerHTML = keyed.length + '<small> / ' + total + '</small>';
+  var bars = '';
+  keyed.forEach(function (k) { bars += '<span style="background:' + (deg[k] ? '#C9A15A' : '#74B095') + '"></span>'; });
+  for (var i = 0; i < Math.min(8, missing.length); i++) bars += '<span></span>';
+  document.getElementById('st-src-bars').innerHTML = bars;
+  var degKeys = Object.keys(deg);
+  var sub = document.getElementById('st-src-s');
+  if (degKeys.length) {
+    var dk = degKeys[0], dv = deg[dk];
+    sub.textContent = dk + ' ' + (DEG[dv.state] || dv.state).toLowerCase() + (dv.until ? ' until ' + new Date(dv.until * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '') + (degKeys.length > 1 ? ' · +' + (degKeys.length - 1) + ' more' : '');
+    sub.style.color = '#D2B27E';
+  } else {
+    sub.textContent = keyed.length ? 'All keyed sources healthy · free sources always on' : 'Free sources only · add keys in Settings';
+  }
+  var crit = missing.filter(function (k) { return ['WiGLE', 'Shodan'].indexOf(k) >= 0; });
+  if (crit.length) {
+    document.getElementById('ov-missing').hidden = false;
+    document.getElementById('ov-missing-t').textContent = crit.join(' and ') + ' not configured. Those layers stay empty; everything else works.';
+  }
+  var rows = keyed.concat(missing.filter(function (k) { return k !== 'Gemini'; })).slice(0, 8).map(function (k) {
+    var on = keyed.indexOf(k) >= 0, dg = deg[k], hk = h[k] || {};
+    var col = !on ? '#4A4858' : dg ? '#C9A15A' : '#74B095';
+    var st = !on ? 'No key' : dg ? (DEG[dg.state] || dg.state) + (dg.until ? ' · ' + new Date(dg.until * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '') : 'Healthy';
+    var last = hk.last_ok ? ago(hk.last_ok) : '—';
+    return '<tr><td>' + esc(k) + '</td><td style="color:#A3A0B2">' + esc(DOMAIN[k] || '') + '</td>' +
+      '<td><span class="ov-st"><i style="background:' + col + '"></i>' + esc(st) + '</span></td>' +
+      '<td style="text-align:right;font-family:IBM Plex Mono,monospace;font-size:12px;color:#9A97A8">' + esc(last) + '</td></tr>';
+  });
+  document.getElementById('ov-src').innerHTML = rows.join('');
+  degKeys.forEach(function (k) {
+    var v = deg[k];
+    EVENTS.push({ tag: 'API', c: '#D9BD8C', title: k + ' ' + (DEG[v.state] || v.state).toLowerCase(),
+      meta: (v.until ? 'Paused until ' + new Date(v.until * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' · ' : '') + 'other sources keep running',
+      ts: (h[k] && h[k].last_error) || Date.now() / 1000 });
+  });
+  renderEvents();
+}).catch(function () {
+  document.getElementById('st-src').textContent = '—';
+  document.getElementById('st-src-s').textContent = 'Backend not reachable';
+});
+
+/* ── Satellites / SDR ── */
+getJSON('/api/dashboard-stats').then(function (d) {
+  var n = d.satellites_tracked || 0;
+  document.getElementById('st-sats').textContent = n ? n.toLocaleString('en-US') : '—';
+  document.getElementById('st-sats-s').textContent = (n ? '' : 'Open Orbital once to load TLEs · ') + (d.sdr_nodes ? d.sdr_nodes + ' SDR receivers cached' : 'SDR list not loaded yet');
+}).catch(function () {});
+
+/* ── Scans → map hotspots + sparkline + events ── */
+getJSON('/api/scans?limit=500').then(function (d) {
+  var scans = d.scans || [];
+  document.getElementById('st-scans').textContent = scans.length.toLocaleString('en-US');
+  var cases = {};
+  scans.forEach(function (s) { if (s.case_id) cases[s.case_id] = 1; });
+  document.getElementById('st-scans-s').textContent = scans.length
+    ? 'in ' + Object.keys(cases).length + ' case' + (Object.keys(cases).length === 1 ? '' : 's') + ' · last ' + ago(scans[0].created_at) + ' ago'
+    : 'Use “Save to case” on any scan page';
+  // 14-day sparkline from real scan dates
+  if (scans.length) {
+    var days = new Array(14).fill(0), now = Date.now() / 1000;
+    scans.forEach(function (s) { var i = 13 - Math.floor((now - s.created_at) / 86400); if (i >= 0 && i < 14) days[i]++; });
+    var mx = Math.max.apply(null, days) || 1;
+    var pts = days.map(function (v, i) { return (i * 84 / 13).toFixed(1) + ',' + (25 - v / mx * 21).toFixed(1); }).join(' ');
+    document.getElementById('st-scans-spark').innerHTML = '<polyline points="' + pts + '" stroke="#9A8CC4" stroke-width="1.6" stroke-linejoin="round" fill="none"/>';
+  }
+  // Hotspots grouped by ~1° cell
+  var cells = {};
+  scans.forEach(function (s) {
+    if (s.lat == null || s.lon == null) return;
+    var key = Math.round(s.lat) + ',' + Math.round(s.lon);
+    var c = cells[key] || (cells[key] = { lat: 0, lon: 0, n: 0, label: s.label || s.case_name || '' });
+    c.lat += s.lat; c.lon += s.lon; c.n++;
+  });
+  var list = Object.keys(cells).map(function (k) { var c = cells[k]; return { lat: c.lat / c.n, lon: c.lon / c.n, n: c.n, label: c.label }; })
+    .sort(function (a, b) { return b.n - a.n; }).slice(0, 12);
+  var placed = [];
+  list.forEach(function (c) {
+    var x = (c.lon + 180) / 360, y = (75 - c.lat) / 133;
+    var free = placed.length < 6 && placed.every(function (q) { return Math.abs(q[0] - x) > 0.09 || Math.abs(q[1] - y) > 0.06; });
+    if (free) placed.push([x, y]);
+    addSpot(c.lat, c.lon, free ? c.lat.toFixed(2) + ', ' + c.lon.toFixed(2) + ' · ' + c.n + (c.n === 1 ? ' scan' : ' scans') : '', false, c.n);
+  });
+  if (!list.length) document.getElementById('ov-map-empty').hidden = false;
+  scans.slice(0, 5).forEach(function (s) {
+    EVENTS.push({ tag: 'SCAN', c: '#C3B8E2', title: (s.label || s.kind + ' scan') + ' · ' + (s.device_count || 0) + ' devices',
+      meta: (s.case_name ? s.case_name + ' · ' : '') + (s.lat != null ? s.lat.toFixed(4) + ', ' + s.lon.toFixed(4) : s.kind), ts: s.created_at });
+  });
+  renderEvents();
+}).catch(function () { document.getElementById('st-scans').textContent = '—'; document.getElementById('ov-map-empty').hidden = false; });
+
+/* ── Watchlist hits ── */
+getJSON('/api/watchlist/alerts').then(function (d) {
+  (d.alerts || []).slice(0, 8).forEach(function (a) {
+    var dev = a.device || {};
+    EVENTS.push({ tag: 'WL', c: '#E0A4A4', title: 'Watchlist hit: ' + (a.value || ''),
+      meta: [a.type, dev.ssid || dev.flight || dev.ip, a.scan_source].filter(Boolean).join(' · '), ts: a.ts });
+    if (dev.lat != null && dev.lon != null) addSpot(+dev.lat, +dev.lon, '', true, 1);
+  });
+  renderEvents();
+}).catch(function () {});
+
+/* ── Quick scan ── */
+window.geoMe = function () {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(function (p) {
+    document.getElementById('qs-lat').value = p.coords.latitude.toFixed(5);
+    document.getElementById('qs-lon').value = p.coords.longitude.toFixed(5);
+    document.getElementById('ov-geo').textContent = p.coords.latitude.toFixed(4) + ', ' + p.coords.longitude.toFixed(4);
+    try { localStorage.setItem('sigops_last_coords', JSON.stringify({ lat: p.coords.latitude, lon: p.coords.longitude })); } catch (e) {}
+  });
+};
+window.quickScan = function () {
+  var lat = parseFloat(document.getElementById('qs-lat').value), lon = parseFloat(document.getElementById('qs-lon').value);
+  if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) { document.getElementById('qs-lat').focus(); return; }
+  window.location.href = '/map-w?lat=' + lat + '&lon=' + lon;
+};
+['qs-lat', 'qs-lon'].forEach(function (id) { document.getElementById(id).addEventListener('keydown', function (e) { if (e.key === 'Enter') quickScan(); }); });
+try {
+  var saved = JSON.parse(localStorage.getItem('sigops_last_coords') || 'null');
+  if (saved && saved.lat != null) {
+    document.getElementById('qs-lat').value = (+saved.lat).toFixed(5);
+    document.getElementById('qs-lon').value = (+saved.lon).toFixed(5);
+    document.getElementById('ov-geo').textContent = (+saved.lat).toFixed(4) + ', ' + (+saved.lon).toFixed(4);
+  }
+} catch (e) {}
+})();
+</script>
+{% endblock %}

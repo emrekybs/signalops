@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% block title %}RF Layers · SignalOps{% endblock %}
+{% block topbar %}<span class="so-top-sub" id="rf-sub">LoRa · Meshtastic · radiosondes · HF paths · GNSS interference</span>{% endblock %}
+{% block extra_style %}
+.rf-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+.rf-bar input{width:220px !important;height:38px;font-family:'IBM Plex Mono',monospace !important}
+.rf-bar select{width:auto !important;height:38px;padding:0 30px 0 12px !important}
+.rf-bar .sp{flex:1}
+.rf-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;height:calc(100vh - 170px);min-height:560px}
+#rf-map{height:100%;border-radius:12px;border:1px solid var(--so-line);background:#101015}
+.rf-side{display:flex;flex-direction:column;gap:14px;overflow-y:auto;min-height:0}
+.rf-card{background:var(--so-s1);border:1px solid var(--so-line);border-radius:12px;padding:16px}
+.rf-card h3{margin:0 0 10px;font-size:14px;font-weight:600}
+.rf-layer{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:13px;color:#C8C4D6;cursor:pointer;border-bottom:1px solid #1A1A21}
+.rf-layer:last-child{border-bottom:0}
+.rf-layer input{margin:0;width:auto !important;flex:0 0 auto}
+.rf-layer > span:not(.n){flex:1;min-width:0;text-align:left}
+.rf-layer i{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.rf-layer .n{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#9A97A8}
+.rf-layer .n.err{color:#C99A9A}
+.rf-layer small{display:block;font-size:11px;color:#85829A}
+.rf-sw{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.rf-sw div{background:var(--so-s2);border-radius:8px;padding:10px}
+.rf-sw b{display:block;font-size:20px;font-weight:600}
+.rf-sw span{font-size:11px;color:#9A97A8}
+.rf-impact{font-size:12px;color:#C8C4D6;margin-bottom:8px}
+.rf-alert{font-size:12px;color:#A3A0B2;padding:6px 0;border-top:1px solid #1A1A21}
+.rf-alert time{display:block;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#76738A}
+.rf-tool{display:flex;gap:8px;margin-top:8px}
+.rf-tool input{flex:1;height:36px;font-family:'IBM Plex Mono',monospace !important}
+.rf-out{margin-top:10px;font-size:12px;color:#C8C4D6;max-height:220px;overflow-y:auto}
+.rf-out table td{padding:5px 6px 5px 0 !important;font-size:12px !important}
+.rf-note{font-size:11px;color:#85829A;margin-top:8px;line-height:1.5}
+.rf-pop b{display:block;font-size:13px;margin-bottom:2px}
+.rf-pop div{font-size:12px;color:#555;line-height:1.5}
+@media (max-width:1000px){.rf-grid{grid-template-columns:1fr;height:auto}#rf-map{height:62vh}}
+{% endblock %}
+
+{% block content %}
+<div class="rf-bar">
+  <input id="rf-coord" placeholder="41.0082, 28.9784" aria-label="Center coordinates">
+  <select id="rf-radius" aria-label="Radius">
+    <option value="25">25 km</option><option value="50">50 km</option><option value="100" selected>100 km</option>
+    <option value="250">250 km</option><option value="500">500 km</option>
+  </select>
+  <button class="so-btn so-btn-solid" id="rf-load" type="button">Load layers</button>
+  <button class="so-btn so-btn-ghost" id="rf-me" type="button"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>My location</button>
+  <span class="sp"></span>
+  <span class="so-top-sub" id="rf-status">Pick a point and load</span>
+</div>
+
+<div class="rf-grid">
+  <div id="rf-map"></div>
+  <div class="rf-side">
+    <section class="rf-card" aria-label="Layers">
+      <h3>Layers</h3>
+      <label class="rf-layer"><input type="checkbox" data-layer="gnss" checked><i style="background:#C77B7B"></i><span>GNSS interference<small>from ADS-B position accuracy (adsb.fi)</small></span><span class="n" data-n="gnss">—</span></label>
+      <label class="rf-layer"><input type="checkbox" data-layer="lora" checked><i style="background:#74B095"></i><span>LoRaWAN gateways<small>Packet Broker</small></span><span class="n" data-n="lora">—</span></label>
+      <label class="rf-layer"><input type="checkbox" data-layer="mesh" checked><i style="background:#7FA9C4"></i><span>Meshtastic nodes<small>meshmap.net</small></span><span class="n" data-n="mesh">—</span></label>
+      <label class="rf-layer"><input type="checkbox" data-layer="sonde" checked><i style="background:#C9A15A"></i><span>Radiosondes<small>SondeHub · with landing prediction</small></span><span class="n" data-n="sonde">—</span></label>
+      <label class="rf-layer"><input type="checkbox" data-layer="wspr"><i style="background:#9A8CC4"></i><span>WSPR paths<small>wspr.live · last 30 min</small></span><span class="n" data-n="wspr">—</span></label>
+      <label class="rf-layer"><input type="checkbox" data-layer="psk"><i style="background:#A58BB8"></i><span>PSKReporter paths<small>last 15 min · your grid field</small></span><span class="n" data-n="psk">—</span></label>
+      <label class="rf-layer"><input type="checkbox" data-layer="rptr"><i style="background:#C08A6E"></i><span>Repeaters<small>RepeaterBook · needs app token</small></span><span class="n" data-n="rptr">—</span></label>
+      <p class="rf-note">HF paths are off by default — they can draw thousands of lines. Imagery: use the layer switcher on the map (NASA GIBS, Sentinel-2 cloudless).</p>
+    </section>
+
+    <section class="rf-card" aria-label="Space weather">
+      <h3>Space weather</h3>
+      <div class="rf-sw">
+        <div><b id="sw-kp">—</b><span>Kp index</span></div>
+        <div><b id="sw-xr">—</b><span>X-ray class</span></div>
+        <div><b id="sw-f107">—</b><span>F10.7 flux</span></div>
+      </div>
+      <div class="rf-impact" id="sw-impact">Loading NOAA SWPC…</div>
+      <div id="sw-alerts"></div>
+    </section>
+
+    <section class="rf-card" aria-label="Satellite frequencies">
+      <h3>Satellite frequencies</h3>
+      <div class="rf-tool"><input id="sat-norad" inputmode="numeric" placeholder="NORAD ID, e.g. 25544"><button class="so-btn so-btn-ghost" id="sat-go" type="button">Look up</button></div>
+      <div class="rf-out" id="sat-out"></div>
+      <p class="rf-note">Transmitters from SatNOGS DB. Pair with pass times on the Orbital page.</p>
+    </section>
+
+    <section class="rf-card" aria-label="Wi-Fi geolocation">
+      <h3>Wi-Fi geolocation</h3>
+      <div class="rf-tool"><input id="bdb-in" placeholder="2+ BSSIDs, comma separated"><button class="so-btn so-btn-ghost" id="bdb-go" type="button">Locate</button></div>
+      <div class="rf-out" id="bdb-out"></div>
+      <p class="rf-note">BeaconDB (open MLS successor). Needs at least two access points seen together.</p>
+    </section>
+
+    <section class="rf-card" aria-label="Repeaters" id="rb-card">
+      <h3>Repeaters</h3>
+      <div class="rf-tool"><input id="rb-country" placeholder="Country, e.g. Turkey"><button class="so-btn so-btn-ghost" id="rb-go" type="button">Load</button></div>
+      <p class="rf-note">RepeaterBook data needs an approved app token (Settings → Air &amp; Radio). Data courtesy of RepeaterBook.com.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+var $ = function (id) { return document.getElementById(id); };
+var E = function (s) { return window.escapeHtml ? escapeHtml(String(s == null ? '' : s)) : String(s == null ? '' : s); };
+var center = { lat: 41.0082, lon: 28.9784 };
+try { var sv = JSON.parse(localStorage.getItem('sigops_last_coords') || 'null'); if (sv && sv.lat != null) center = { lat: +sv.lat, lon: +sv.lon }; } catch (e) {}
+$('rf-coord').value = center.lat.toFixed(4) + ', ' + center.lon.toFixed(4);
+
+var map = L.map('rf-map', { zoomControl: true, worldCopyJump: true }).setView([center.lat, center.lon], 8);
+var dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(map);
+var y = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+var gibs = L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/' + y + '/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+  { maxNativeZoom: 9, maxZoom: 19, attribution: 'Imagery: NASA EOSDIS GIBS (' + y + ')' });
+var s2 = L.tileLayer('https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg',
+  { maxZoom: 19, maxNativeZoom: 15, attribution: '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless 2024</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2024)' });
+
+var G = { gnss: L.layerGroup(), lora: L.layerGroup(), mesh: L.layerGroup(), sonde: L.layerGroup(), wspr: L.layerGroup(), psk: L.layerGroup(), rptr: L.layerGroup() };
+L.control.layers({ 'Dark': dark, 'NASA GIBS true colour (daily)': gibs, 'Sentinel-2 cloudless': s2 }, null, { position: 'topright' }).addTo(map);
+var ring = L.circle([center.lat, center.lon], { radius: 100000, color: '#8A7AB8', weight: 1, dashArray: '4 6', fill: false, interactive: false }).addTo(map);
+var pin = L.circleMarker([center.lat, center.lon], { radius: 6, color: '#E6E4EC', weight: 2, fillColor: '#6E5F9C', fillOpacity: 1 }).addTo(map);
+
+function on(name) { var cb = document.querySelector('[data-layer="' + name + '"]'); return cb && cb.checked; }
+document.querySelectorAll('[data-layer]').forEach(function (cb) {
+  cb.addEventListener('change', function () {
+    var g = G[cb.dataset.layer];
+    if (cb.checked) { g.addTo(map); if (!g.__loaded) load(cb.dataset.layer); } else map.removeLayer(g);
+  });
+  if (cb.checked) G[cb.dataset.layer].addTo(map);
+});
+function setN(name, txt, err) { var el = document.querySelector('[data-n="' + name + '"]'); if (el) { el.textContent = txt; el.classList.toggle('err', !!err); el.title = err || ''; } }
+function q(path, extra) {
+  var r = $('rf-radius').value;
+  return fetch(path + '?lat=' + center.lat + '&lon=' + center.lon + '&radius_km=' + r + (extra || ''), { cache: 'no-store' }).then(function (x) { return x.json(); });
+}
+function pop(title, rows) {
+  return '<div class="rf-pop"><b>' + E(title) + '</b>' + rows.filter(function (r) { return r[1] != null && r[1] !== ''; })
+    .map(function (r) { return '<div>' + E(r[0]) + ': ' + E(r[1]) + '</div>'; }).join('') + '</div>';
+}
+function dot(lat, lon, col, r) { return L.circleMarker([lat, lon], { radius: r || 5, color: col, weight: 1, fillColor: col, fillOpacity: 0.75 }); }
+
+var LOADERS = {
+  gnss: function () {
+    var nm = Math.min(250, Math.max(50, Math.round($('rf-radius').value / 1.852)));
+    return fetch('/api/gps-jamming?lat=' + center.lat + '&lon=' + center.lon + '&radius=' + nm + '&grid=0.5', { cache: 'no-store' }).then(function (x) { return x.json(); }).then(function (d) {
+      (d.grid || []).forEach(function (c) {
+        var h = (c.size_deg || 0.5) / 2, a = 0.06 + c.severity / 100 * 0.3;
+        L.rectangle([[c.lat - h, c.lon - h], [c.lat + h, c.lon + h]], { color: '#C77B7B', weight: 0.5, opacity: 0.35, fillColor: '#C77B7B', fillOpacity: a })
+          .bindPopup(pop('GNSS degradation ' + c.severity + '/100', [['Avg NACp', c.avg_nacp], ['Aircraft sampled', c.aircraft_count]])).addTo(G.gnss);
+      });
+      return { count: (d.grid || []).length, error: d.error, note: d.aircraft_sampled != null ? d.aircraft_sampled + ' aircraft sampled' : '' };
+    });
+  },
+  lora: function () {
+    return q('/api/rf/lora').then(function (d) {
+      (d.items || []).forEach(function (g) {
+        dot(g.lat, g.lon, g.online === false ? '#5F5C70' : '#74B095', 4).bindPopup(pop('LoRaWAN gateway', [['ID', g.id], ['EUI', g.eui], ['Network', g.net], ['Online', g.online], ['Antennas', g.antennas], ['Updated', g.updated], ['Distance km', g.dist_km]])).addTo(G.lora);
+      });
+      return d;
+    });
+  },
+  mesh: function () {
+    return q('/api/rf/meshtastic').then(function (d) {
+      (d.items || []).forEach(function (n) {
+        dot(n.lat, n.lon, '#7FA9C4', 4).bindPopup(pop(n.name, [['Short', n.short], ['Hardware', n.hw], ['Role', n.role], ['Region', n.region], ['Preset', n.preset], ['Battery %', n.battery], ['Channel util %', n.ch_util], ['Last seen', n.last_seen ? new Date(n.last_seen * 1000).toLocaleString() : '']])).addTo(G.mesh);
+      });
+      return d;
+    });
+  },
+  sonde: function () {
+    return q('/api/rf/sondes').then(function (d) {
+      (d.items || []).forEach(function (s) {
+        dot(s.lat, s.lon, '#C9A15A', 6).bindPopup(pop('Radiosonde ' + s.serial, [['Type', [s.manufacturer, s.type, s.subtype].filter(Boolean).join(' ')], ['Frequency MHz', s.freq_mhz], ['Altitude m', s.alt != null ? Math.round(s.alt) : ''], ['Vertical m/s', s.vel_v != null ? s.vel_v.toFixed(1) : ''], ['Temp °C', s.temp], ['Last frame', s.time], ['Uploader', s.uploader]])).addTo(G.sonde);
+        var p = s.prediction;
+        if (p && p.track && p.track.length > 1) {
+          L.polyline([[s.lat, s.lon]].concat(p.track), { color: '#C9A15A', weight: 1.5, opacity: 0.7, dashArray: '3 5' }).addTo(G.sonde);
+          if (p.landing) L.circleMarker(p.landing, { radius: 4, color: '#C9A15A', weight: 2, fill: false }).bindPopup(pop('Predicted landing', [['Serial', s.serial]])).addTo(G.sonde);
+        }
+      });
+      return d;
+    });
+  },
+  wspr: function () { return paths('/api/rf/wspr', G.wspr, '#9A8CC4', 'WSPR'); },
+  psk: function () { return paths('/api/rf/pskreporter', G.psk, '#A58BB8', 'PSK'); },
+  rptr: function () {
+    var c = $('rb-country').value.trim();
+    if (!c) return Promise.resolve({ items: [], error: 'Enter a country in the Repeaters card' });
+    return q('/api/rf/repeaters', '&country=' + encodeURIComponent(c)).then(function (d) {
+      (d.items || []).forEach(function (r) {
+        dot(r.lat, r.lon, '#C08A6E', 5).bindPopup(pop(r.callsign || 'Repeater', [['Output', r.freq], ['Input', r.input], ['Tone', r.tone], ['Mode', r.mode], ['City', r.city], ['Status', r.status]])).addTo(G.rptr);
+      });
+      return d;
+    });
+  }
+};
+function paths(url, group, col, label) {
+  return q(url).then(function (d) {
+    var items = d.items || [];
+    items.slice(0, 1200).forEach(function (s) {
+      L.polyline([[s.tx_lat, s.tx_lon], [s.rx_lat, s.rx_lon]], { color: col, weight: 1, opacity: 0.35 })
+        .bindPopup(pop(label + ' ' + (s.tx || '') + ' → ' + (s.rx || ''), [['Band / mode', s.band || s.mode], ['Freq', s.freq], ['SNR dB', s.snr], ['Power dBm', s.power], ['Distance km', s.km], ['Time', s.time]])).addTo(group);
+    });
+    return d;
+  });
+}
+function load(name) {
+  var g = G[name];
+  g.clearLayers(); g.__loaded = true;
+  setN(name, '…');
+  return LOADERS[name]().then(function (d) {
+    var n = d.count != null ? d.count : (d.items || []).length;
+    setN(name, d.error ? (n || '0') : String(n), d.error);
+    return d;
+  }).catch(function () { setN(name, '!', 'Request failed'); });
+}
+function loadAll() {
+  ring.setLatLng([center.lat, center.lon]).setRadius($('rf-radius').value * 1000);
+  pin.setLatLng([center.lat, center.lon]);
+  Object.keys(G).forEach(function (k) { G[k].clearLayers(); G[k].__loaded = false; setN(k, '—'); });
+  $('rf-status').textContent = center.lat.toFixed(4) + ', ' + center.lon.toFixed(4) + ' · ' + $('rf-radius').value + ' km';
+  Object.keys(G).forEach(function (k) { if (on(k) && k !== 'rptr') load(k); });
+  if (on('rptr') && $('rb-country').value.trim()) load('rptr');
+}
+function parseCoord() {
+  var m = $('rf-coord').value.split(/[,\s]+/).map(parseFloat);
+  if (m.length >= 2 && isFinite(m[0]) && isFinite(m[1]) && Math.abs(m[0]) <= 90 && Math.abs(m[1]) <= 180) { center = { lat: m[0], lon: m[1] }; return true; }
+  $('rf-coord').focus(); return false;
+}
+$('rf-load').addEventListener('click', function () { if (parseCoord()) { map.setView([center.lat, center.lon], map.getZoom() < 6 ? 8 : map.getZoom()); loadAll(); } });
+$('rf-coord').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('rf-load').click(); });
+$('rf-radius').addEventListener('change', function () { loadAll(); });
+map.on('click', function (e) { center = { lat: +e.latlng.lat.toFixed(4), lon: +e.latlng.lng.toFixed(4) }; $('rf-coord').value = center.lat + ', ' + center.lon; loadAll(); });
+$('rf-me').addEventListener('click', function () {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(function (p) {
+    center = { lat: +p.coords.latitude.toFixed(4), lon: +p.coords.longitude.toFixed(4) };
+    $('rf-coord').value = center.lat + ', ' + center.lon;
+    try { localStorage.setItem('sigops_last_coords', JSON.stringify(center)); } catch (e) {}
+    map.setView([center.lat, center.lon], 9); loadAll();
+  });
+});
+$('rb-go').addEventListener('click', function () { var cb = document.querySelector('[data-layer="rptr"]'); cb.checked = true; G.rptr.addTo(map); load('rptr'); });
+
+/* Space weather */
+fetch('/api/rf/spaceweather').then(function (r) { return r.json(); }).then(function (d) {
+  if (d.error) { $('sw-impact').textContent = d.error; return; }
+  $('sw-kp').textContent = d.kp != null ? d.kp.toFixed(1) : '—';
+  $('sw-kp').style.color = d.kp >= 5 ? '#C77B7B' : d.kp >= 4 ? '#C9A15A' : '#9BCBB2';
+  $('sw-xr').textContent = d.xray_class || '—';
+  $('sw-f107').textContent = d.f107 != null ? Math.round(d.f107) : '—';
+  $('sw-impact').textContent = d.impact || '';
+  $('sw-alerts').innerHTML = (d.alerts || []).slice(0, 4).map(function (a) {
+    return '<div class="rf-alert"><time>' + E(a.time || '') + '</time>' + E(a.title || a.id || '') + '</div>';
+  }).join('');
+}).catch(function () { $('sw-impact').textContent = 'NOAA SWPC unavailable'; });
+
+/* SatNOGS transmitters */
+function satLookup() {
+  var n = $('sat-norad').value.trim();
+  if (!/^\d{1,6}$/.test(n)) { $('sat-norad').focus(); return; }
+  $('sat-out').textContent = 'Loading…';
+  fetch('/api/rf/satnogs/transmitters?norad=' + n).then(function (r) { return r.json(); }).then(function (d) {
+    var it = d.items || [];
+    if (!it.length) { $('sat-out').textContent = d.error || 'No transmitters listed for this satellite.'; return; }
+    $('sat-out').innerHTML = '<table><tbody>' + it.slice(0, 30).map(function (t) {
+      return '<tr><td style="color:' + (t.alive ? '#9BCBB2' : '#76738A') + '">' + E(t.downlink_mhz != null ? t.downlink_mhz + ' MHz' : '—') + '</td><td>' + E(t.mode || '') + '</td><td>' + E(t.description || '') + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  }).catch(function () { $('sat-out').textContent = 'SatNOGS unavailable'; });
+}
+$('sat-go').addEventListener('click', satLookup);
+$('sat-norad').addEventListener('keydown', function (e) { if (e.key === 'Enter') satLookup(); });
+
+/* BeaconDB */
+$('bdb-go').addEventListener('click', function () {
+  $('bdb-out').textContent = 'Locating…';
+  fetch('/api/rf/beacondb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bssids: $('bdb-in').value }) })
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.found) { $('bdb-out').textContent = d.error || 'Not in BeaconDB.'; return; }
+      $('bdb-out').textContent = d.lat.toFixed(5) + ', ' + d.lon.toFixed(5) + ' · ±' + Math.round(d.accuracy_m || 0) + ' m';
+      L.circle([d.lat, d.lon], { radius: d.accuracy_m || 50, color: '#B4A8D6', weight: 1, fillOpacity: 0.15 }).addTo(map);
+      map.setView([d.lat, d.lon], 15);
+    }).catch(function () { $('bdb-out').textContent = 'BeaconDB unavailable'; });
+});
+
+loadAll();
+})();
+</script>
+{% endblock %}

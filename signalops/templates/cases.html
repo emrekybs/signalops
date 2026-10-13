@@ -1,0 +1,785 @@
+{% extends "base.html" %}
+{% block title %}Cases — SignalOps{% endblock %}
+{% block extra_style %}
+[hidden]{display:none!important}
+.cs-grid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}
+.cs-side .card{padding:14px}
+.cs-new{display:flex;gap:8px;margin-bottom:12px}
+.cs-new .btn{padding:8px 12px;white-space:nowrap}
+.cs-list{display:flex;flex-direction:column;gap:6px;max-height:calc(100vh - 230px);overflow-y:auto}
+.cs-item{display:block;width:100%;text-align:left;background:var(--e);border:1px solid var(--b);border-radius:6px;padding:10px 12px;
+  cursor:pointer;color:var(--td);font-family:'JetBrains Mono',monospace;font-size:11px;transition:border-color .15s,background .15s}
+.cs-item:hover{border-color:rgba(138, 122, 184,0.3)}
+.cs-item.active{border-color:rgba(138, 122, 184,0.6);background:rgba(138, 122, 184,0.10)}
+.cs-item .nm{display:flex;justify-content:space-between;gap:8px;align-items:center;font-family:'Rajdhani',sans-serif;font-size:14px;
+  font-weight:700;color:var(--t);letter-spacing:.5px;margin-bottom:3px}
+.cs-item .nm span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-item.closed .nm{color:var(--td)}
+.cs-item.un{border-style:dashed}
+.cs-sep{font-size:9px;letter-spacing:2px;color:var(--tm);margin:8px 2px 2px;text-transform:uppercase}
+.cs-empty{text-align:center;padding:70px 20px;color:var(--tm)}
+.cs-empty .ic{font-size:40px;opacity:.2;margin-bottom:12px}
+.cs-empty .t{font-family:'Rajdhani',sans-serif;letter-spacing:3px}
+.cs-h1{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:var(--t);letter-spacing:.5px;overflow-wrap:anywhere}
+.cs-desc{font-size:12px;color:var(--td);margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
+.cs-meta{font-size:10px;color:var(--tm);letter-spacing:1px;margin-top:8px}
+.cs-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.cs-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.cs-btn{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;
+  border-radius:6px;padding:5px 11px;background:transparent;color:var(--td);border:1px solid rgba(255,255,255,0.12);
+  text-decoration:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;line-height:1.3}
+.cs-btn:hover{color:var(--t);border-color:rgba(138, 122, 184,0.4)}
+.cs-btn:disabled{opacity:.4;cursor:not-allowed}
+.cs-btn.p{color:var(--pl);border-color:rgba(138, 122, 184,0.35);background:rgba(138, 122, 184,0.08)}
+.cs-btn.g{color:var(--g);border-color:rgba(116, 176, 149,0.3);background:rgba(116, 176, 149,0.06)}
+.cs-btn.d{color:var(--danger);border-color:rgba(199, 123, 123,0.3)}
+.cs-btn.d:hover{background:rgba(199, 123, 123,0.1)}
+.cs-btn.on{color:#fff;background:var(--p);border-color:var(--p)}
+.cs-xp{display:inline-flex;gap:4px;align-items:center;padding-left:6px;border-left:1px solid var(--b)}
+.cs-xp .lbl{font-size:9px;letter-spacing:2px;color:var(--tm)}
+.cs-tbl-wrap{overflow-x:auto}
+.cs-tbl tr[data-scan]{cursor:pointer}
+.cs-tbl td{vertical-align:middle}
+.cs-time{white-space:nowrap}
+.cs-lbl{min-width:140px;overflow-wrap:anywhere}
+.cs-tbl .b{display:inline-flex;gap:4px;flex-wrap:wrap}
+.cs-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.cs-note{border-bottom:1px solid var(--b);padding:9px 0;font-size:12px;color:var(--t);display:flex;gap:10px;justify-content:space-between}
+.cs-note .body{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;min-width:0}
+.cs-note .m{font-size:10px;color:var(--tm);margin-top:3px}
+.cs-x{background:none;border:0;color:var(--tm);cursor:pointer;font-size:13px;flex-shrink:0;align-self:flex-start}
+.cs-x:hover{color:var(--danger)}
+.cs-link{background:none;border:0;padding:0;color:var(--pl);cursor:pointer;font:inherit;text-decoration:underline dotted;text-underline-offset:2px}
+.cs-link:hover{color:#fff}
+.cs-flag{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--b);font-size:11px}
+.cs-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;display:inline-block}
+.cs-key{font-size:10px;color:var(--tm);overflow-wrap:anywhere}
+.cs-scan-grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px}
+.cs-map-card{padding:0;overflow:hidden;position:relative}
+#cs-map{height:calc(100vh - 300px);min-height:420px;background:#0E0E13}
+#cs-legend{position:absolute;left:10px;bottom:10px;z-index:500;background:rgba(11, 11, 15,0.88);border:1px solid var(--b);
+  border-radius:6px;padding:6px 10px;font-size:10px;color:var(--td);display:flex;gap:10px;flex-wrap:wrap;max-width:calc(100% - 20px)}
+#cs-legend span{display:inline-flex;align-items:center;gap:5px}
+.cs-dev-card{padding:12px;display:flex;flex-direction:column;max-height:calc(100vh - 300px);min-height:420px}
+.cs-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.cs-tab{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 9px;border-radius:12px;cursor:pointer;
+  border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--td)}
+.cs-tab.active{color:#fff;background:rgba(138, 122, 184,0.35);border-color:rgba(138, 122, 184,0.6)}
+.cs-tab.n.active{background:rgba(116, 176, 149,0.25);border-color:rgba(116, 176, 149,0.6)}
+.cs-tab.o.active{background:rgba(156,163,175,0.25);border-color:rgba(156,163,175,0.6)}
+.cs-tab.c.active{background:rgba(201, 161, 90,0.25);border-color:rgba(201, 161, 90,0.6)}
+.cs-dlist{overflow-y:auto;flex:1;margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.cs-dev{display:block;width:100%;text-align:left;background:var(--e);border:1px solid transparent;border-left:3px solid var(--tm);border-radius:5px;
+  padding:7px 9px;cursor:pointer;color:var(--td);font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.5}
+.cs-dev:hover{border-color:rgba(138, 122, 184,0.35)}
+.cs-dev .nm{color:var(--t);font-size:12px;font-weight:500;display:flex;justify-content:space-between;gap:6px}
+.cs-dev .nm span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-dev.st-new{border-left-color:#74B095}.cs-dev.st-gone{border-left-color:#9CA3AF;opacity:.75}
+.cs-dev.st-changed{border-left-color:#C9A15A}.cs-dev.st-same{opacity:.55}
+.cs-chg{color:#C9A15A;overflow-wrap:anywhere}
+.cs-more{font-size:10px;color:var(--tm);text-align:center;padding:8px}
+/* Cihaz paneli */
+#cs-drawer{position:fixed;top:62px;right:0;bottom:0;width:min(580px,100vw);z-index:1500;background:var(--s);
+  border-left:1px solid rgba(138, 122, 184,0.3);box-shadow:-20px 0 50px rgba(0,0,0,0.5);display:flex;flex-direction:column}
+.dv-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:16px 18px;border-bottom:1px solid var(--b)}
+.dv-body{overflow-y:auto;padding:14px 18px 30px;flex:1}
+.dv-sec{margin-top:18px}
+.dv-sec>h4{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--td);text-transform:uppercase;
+  margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.dv-sec>h4::before{content:'';width:3px;height:12px;background:var(--p);border-radius:2px}
+.dv-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dv-stat{background:var(--e);border:1px solid var(--b);border-radius:6px;padding:8px 10px;min-width:0}
+.dv-stat .v{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:var(--t);overflow-wrap:anywhere}
+.dv-stat .l{font-size:9px;letter-spacing:1.5px;color:var(--td);opacity:.75;text-transform:uppercase;margin-top:2px}
+#dv-map{height:220px;border-radius:6px;border:1px solid var(--b);background:#0E0E13}
+.dv-chips{display:flex;flex-wrap:wrap;gap:6px}
+.dv-chip{background:var(--e);border:1px solid var(--b);border-radius:14px;padding:4px 10px;font-size:10px;color:var(--td);cursor:pointer;
+  font-family:'JetBrains Mono',monospace;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dv-chip:hover{border-color:rgba(138, 122, 184,0.5);color:var(--t)}
+.dv-chip b{color:var(--pl);font-weight:500}
+.dv-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.dv-row>*{flex:1 1 140px;min-width:0}
+.dv-row>.cs-btn{flex:0 0 auto}
+.dv-kv{width:100%;font-size:10px}
+.dv-kv td{padding:4px 8px;font-size:10px;overflow-wrap:anywhere}
+.dv-kv td:first-child{color:var(--tm);width:120px}
+#dv-sight td{padding:6px 8px;font-size:10px}
+#dv-sight tr[data-scan]{cursor:pointer}
+.cs-msg{font-size:10px;color:var(--tm);margin-top:6px;min-height:1em}
+textarea{resize:vertical;min-height:60px;line-height:1.5}
+@media (max-width:900px){
+  .cs-grid{grid-template-columns:minmax(0,1fr)}
+  .cs-list{max-height:none}
+  .cs-side .cs-list{max-height:40vh}
+  .cs-two{grid-template-columns:minmax(0,1fr)}
+  .cs-scan-grid{grid-template-columns:minmax(0,1fr)}
+  #cs-map{height:50vh;min-height:260px}
+  .cs-dev-card{max-height:60vh;min-height:0}
+  .cs-btn{min-height:32px}
+  .cs-xp{border-left:0;padding-left:0}
+  .cs-h1{font-size:19px}
+}
+@media (max-width:600px){
+  .dv-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dv-top,.dv-body{padding-left:14px;padding-right:14px}
+  .cs-tbl th,.cs-tbl td{padding:8px 6px}
+  .cs-tbl .hide-sm{display:none}
+  .cs-time{white-space:normal;min-width:84px}
+  #dv-sight td:nth-child(3){min-width:120px}
+}
+{% endblock %}
+{% block content %}
+<div class="section-hdr" style="flex-wrap:wrap">Cases <span style="font-size:10px;letter-spacing:1px;color:var(--tm);text-transform:none;font-family:'JetBrains Mono',monospace;font-weight:400">· saved scans · change detection · device correlation</span>
+  <span style="margin-left:auto;display:flex;gap:6px"><a class="cs-btn" href="/graph" style="text-decoration:none"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="9" cy="18" r="2.5"/><path d="M8.3 7l7.4.6M7 8.4l1.4 7.2M16.3 9.8l-5.6 6.4"/></svg> Graph</a><a class="cs-btn" href="/timeline" style="text-decoration:none"> Timeline</a></span></div>
+<div class="cs-grid">
+  <aside class="cs-side">
+    <div class="card">
+      <form class="cs-new" id="cs-new-form" autocomplete="off">
+        <input id="cs-new-name" maxlength="200" placeholder="New case name…" aria-label="New case name">
+        <button class="btn btn-p" type="submit">+ New</button>
+      </form>
+      <div class="cs-list" id="cs-list"><div class="cs-msg">Loading…</div></div>
+    </div>
+  </aside>
+
+  <main class="cs-main">
+    <div id="v-empty" class="card cs-empty">
+      <div class="ic"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18v13H3z"/><path d="M8 7V4h8v3"/></svg></div>
+      <div class="t">Select or create a case</div>
+      <div style="font-size:11px;margin-top:8px">Tarama sayfalarındaki “<svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></svg> Save to case” ile sonuçları buraya kaydedebilirsin.</div>
+    </div>
+
+    <div id="v-case" hidden>
+      <div class="card" id="case-head"></div>
+      <div class="card">
+        <div class="section-hdr" style="margin-bottom:10px" id="case-scans-hdr">Scans</div>
+        <div class="cs-tbl-wrap" id="case-scans"></div>
+      </div>
+      <div class="cs-two" id="case-extra">
+        <div class="card">
+          <div class="section-hdr" style="margin-bottom:10px">Notes</div>
+          <form id="note-form" autocomplete="off">
+            <textarea id="note-body" maxlength="5000" placeholder="Add a note…" aria-label="Note"></textarea>
+            <div style="display:flex;justify-content:flex-end;margin-top:6px"><button class="cs-btn p" type="submit">+ Add note</button></div>
+          </form>
+          <div id="case-notes"></div>
+        </div>
+        <div class="card">
+          <div class="section-hdr" style="margin-bottom:10px">Flagged devices</div>
+          <div id="case-flags"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="v-scan" hidden>
+      <div class="card" id="scan-head"></div>
+      <div class="cs-scan-grid">
+        <div class="card cs-map-card"><div id="cs-map"></div><div id="cs-legend"></div></div>
+        <div class="card cs-dev-card">
+          <div class="cs-tabs" id="scan-tabs"></div>
+          <input id="scan-q" placeholder="Filter by name / IP / BSSID…" aria-label="Filter devices">
+          <div class="cs-dlist" id="scan-list"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="cs-drawer" hidden role="dialog" aria-label="Device history">
+  <div class="dv-top">
+    <div style="min-width:0">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--tm)">Device history · correlation</div>
+      <div class="cs-h1" id="dv-title" style="font-size:19px">—</div>
+      <div class="cs-key" id="dv-key"></div>
+    </div>
+    <button class="cs-btn" id="dv-close" type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="dv-body" id="dv-body"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/js/so-cases.js" defer></script>
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const E = v => escapeHtml(v);
+const S = {cases:[], unassigned:{scan_count:0}, caseId:null, unView:false, caseData:null, scan:null, diff:null,
+           diffMode:false, filter:'all', q:'', devKey:null, hist:null, diffCache:{}};
+const KINDS = {nearby:'Nearby', cctv:'CCTV', cell:'Cell', adsb:'ADS-B', ais:'AIS', search:'Search', other:'Other'};
+const FLAG_COLORS = {red:'#F87171', amber:'#FBBF24', green:'#4ADE80', blue:'#60A5FA', purple:'#A78BFA', grey:'#9CA3AF'};
+const FMTS = ['pdf','kml','geojson','csv'];
+
+async function api(method, url, body){
+  const opt = {method, headers:{'Accept':'application/json'}};
+  if(body !== undefined){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+  const r = await fetch(url, opt);
+  let j = null; try { j = await r.json(); } catch(_){}
+  if(!r.ok){ const e = new Error((j && j.error) || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+  return j;
+}
+function toast(msg, err){
+  if(window.SignalOpsCase && SignalOpsCase.toast) SignalOpsCase.toast(E(msg), !!err, 5000);
+  else if(err) alert(msg);
+}
+const fail = e => toast(e.message || String(e), true);
+function fmtT(ts){
+  if(!ts) return '—';
+  return new Date(ts*1000).toLocaleString([], {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+}
+function riskColor(r){ r = Number(r)||0; return r >= 70 ? '#F87171' : r >= 40 ? '#FBBF24' : '#A78BFA'; }
+function devName(d){ return String((d && (d.ssid || d.name || d.callsign || d.ship_name || d.ip || d.bssid || d.cell_id || d.icao || d.mmsi)) || '?'); }
+function num(v){ const x = Number(v); return (v === null || v === undefined || v === '' || !isFinite(x)) ? null : x; }
+function diffBadges(c){
+  if(!c) return '<span style="color:var(--tm)">…</span>';
+  if(c.baseline) return '<span class="badge badge-info">BASELINE</span>';
+  if(!c.new && !c.gone && !c.changed) return '<span class="badge" style="color:var(--tm);border:1px solid var(--b)">NO CHANGE</span>';
+  return `<span class="b">${c.new?`<span class="badge badge-ok">+${c.new} NEW</span>`:''}${c.gone?`<span class="badge" style="background:rgba(156,163,175,0.12);color:#9CA3AF;border:1px solid rgba(156,163,175,0.3)">−${c.gone} GONE</span>`:''}${c.changed?`<span class="badge badge-warn">${c.changed} CHG</span>`:''}</span>`;
+}
+function exportLinks(base){
+  return `<span class="cs-xp"><span class="lbl">EXPORT</span>${FMTS.map(f => `<a class="cs-btn" href="${E(base + f)}" download>${f.toUpperCase()}</a>`).join('')}</span>`;
+}
+
+/* ── URL ── */
+function setUrl(push){
+  const q = new URLSearchParams();
+  if(S.scan) q.set('scan', S.scan.id);
+  else if(S.unView) q.set('case', 'unassigned');
+  else if(S.caseId) q.set('case', S.caseId);
+  if(S.devKey) q.set('device', S.devKey);
+  const u = '/cases' + (q.toString() ? '?' + q.toString() : '');
+  if(u !== location.pathname + location.search) history[push ? 'pushState' : 'replaceState']({}, '', u);
+}
+async function route(){
+  const q = new URLSearchParams(location.search);
+  const sc = parseInt(q.get('scan'), 10), cs = q.get('case'), dv = q.get('device');
+  if(sc > 0) await openScan(sc, false);
+  else if(cs === 'unassigned') await openUnassigned(false);
+  else if(parseInt(cs, 10) > 0) await openCase(parseInt(cs, 10), false);
+  else showView('empty');
+  if(dv) openDevice(dv, false); else closeDevice(false);
+}
+window.addEventListener('popstate', route);
+
+function showView(v){
+  $('v-empty').hidden = v !== 'empty';
+  $('v-case').hidden = v !== 'case';
+  $('v-scan').hidden = v !== 'scan';
+  if(v !== 'scan'){ S.scan = null; S.diff = null; S.diffMode = false; }
+  if(v === 'empty'){ S.caseId = null; S.unView = false; }
+  renderCaseList();
+}
+
+/* ── Case list ── */
+async function loadCases(){
+  try {
+    const j = await api('GET', '/api/cases');
+    S.cases = j.cases || []; S.unassigned = j.unassigned || {scan_count:0};
+  } catch(e){ fail(e); }
+  renderCaseList();
+}
+function renderCaseList(){
+  const activeCase = S.scan ? (S.scan.case_id || null) : S.caseId;
+  const activeUn = S.scan ? !S.scan.case_id : S.unView;
+  const item = c => `<button type="button" class="cs-item ${c.status==='closed'?'closed':''} ${(!activeUn && activeCase===c.id)?'active':''}" data-case="${E(c.id)}">
+      <div class="nm"><span>${E(c.name)}</span>${c.status==='closed'?'<span class="badge badge-warn">CLOSED</span>':'<span class="badge badge-ok">OPEN</span>'}</div>
+      <div>${E(c.scan_count)} scans · ${E(c.flag_count)} flags · ${E(c.note_count)} notes</div>
+      <div style="color:var(--tm);font-size:10px">last scan ${E(fmtT(c.last_scan_at))}</div>
+    </button>`;
+  const open = S.cases.filter(c => c.status !== 'closed'), closed = S.cases.filter(c => c.status === 'closed');
+  let html = `<button type="button" class="cs-item un ${activeUn?'active':''}" data-case="unassigned">
+      <div class="nm"><span>Unassigned scans</span><span class="badge badge-info">${E(S.unassigned.scan_count||0)}</span></div>
+      <div style="color:var(--tm);font-size:10px">vakasız taramalar (ör. alan izleme)</div></button>`;
+  html += open.map(item).join('');
+  if(closed.length) html += '<div class="cs-sep">Closed</div>' + closed.map(item).join('');
+  if(!S.cases.length) html += '<div class="cs-msg" style="padding:8px 2px">No cases yet — create one above.</div>';
+  $('cs-list').innerHTML = html;
+}
+$('cs-list').addEventListener('click', e => {
+  const b = e.target.closest('[data-case]'); if(!b) return;
+  const v = b.dataset.case;
+  if(v === 'unassigned') openUnassigned(true); else openCase(parseInt(v, 10), true);
+});
+$('cs-new-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const name = $('cs-new-name').value.trim(); if(!name) { $('cs-new-name').focus(); return; }
+  try {
+    const j = await api('POST', '/api/cases', {name});
+    $('cs-new-name').value = '';
+    await loadCases(); openCase(j.case.id, true);
+  } catch(err){ fail(err); }
+});
+
+/* ── Case view ── */
+async function openCase(id, push){
+  let j;
+  try { j = await api('GET', '/api/cases/' + id); }
+  catch(e){ fail(e); if(e.status === 404){ showView('empty'); setUrl(false); } return; }
+  S.caseId = id; S.unView = false; S.caseData = j;
+  showView('case'); $('case-extra').hidden = false;
+  renderCaseHead(false); renderScans(j.scans, false); renderNotes(); renderFlags();
+  setUrl(push);
+}
+async function openUnassigned(push){
+  let j;
+  try { j = await api('GET', '/api/scans?unassigned=1&limit=500'); } catch(e){ fail(e); return; }
+  S.caseId = null; S.unView = true; S.caseData = null;
+  showView('case'); $('case-extra').hidden = true;
+  $('case-head').innerHTML = `<div class="cs-h1">Unassigned scans</div>
+    <div class="cs-desc">Herhangi bir vakaya bağlı olmayan taramalar (alan izleme çalıştırmaları, vakası silinmiş taramalar). Bir taramayı açıp “Move to case” ile vakaya taşıyabilirsin.</div>`;
+  renderScans(j.scans || [], true);
+  setUrl(push);
+}
+function renderCaseHead(edit){
+  const c = S.caseData.case;
+  if(edit){
+    $('case-head').innerHTML = `<form id="case-edit" autocomplete="off">
+      <div style="font-size:10px;color:var(--tm);letter-spacing:2px;margin-bottom:6px">NAME</div>
+      <input id="ce-name" maxlength="200" value="${E(c.name)}">
+      <div style="font-size:10px;color:var(--tm);letter-spacing:2px;margin:10px 0 6px">DESCRIPTION</div>
+      <textarea id="ce-desc" maxlength="5000">${E(c.description||'')}</textarea>
+      <div class="cs-actions" style="margin-top:10px;justify-content:flex-end">
+        <button type="button" class="cs-btn" data-act="cancel-edit">Cancel</button>
+        <button type="submit" class="cs-btn g">Save</button></div></form>`;
+    $('ce-name').focus();
+    return;
+  }
+  $('case-head').innerHTML = `<div class="cs-head">
+      <div style="min-width:0;flex:1 1 300px">
+        <div class="cs-h1">${E(c.name)} ${c.status==='closed'?'<span class="badge badge-warn" style="vertical-align:middle">CLOSED</span>':'<span class="badge badge-ok" style="vertical-align:middle">OPEN</span>'}</div>
+        ${c.description?`<div class="cs-desc">${E(c.description)}</div>`:''}
+        <div class="cs-meta">CASE #${E(c.id)} · CREATED ${E(fmtT(c.created_at))} · UPDATED ${E(fmtT(c.updated_at))} · ${E(c.scan_count)} SCANS</div>
+      </div>
+      <div class="cs-actions">
+        <button type="button" class="cs-btn" data-act="edit">Edit</button>
+        <button type="button" class="cs-btn" data-act="toggle-status">${c.status==='closed'?'↺ Reopen':'✓ Close case'}</button>
+        <button type="button" class="cs-btn d" data-act="delete-case">Delete</button>
+        <a class="cs-btn" href="/graph?case=${encodeURIComponent(c.id)}" style="text-decoration:none">Graph</a>
+        <a class="cs-btn" href="/timeline?case=${encodeURIComponent(c.id)}" style="text-decoration:none">Timeline</a>
+        ${exportLinks('/api/cases/' + c.id + '/export/')}
+      </div></div>`;
+}
+$('case-head').addEventListener('click', async e => {
+  const b = e.target.closest('[data-act]'); if(!b || !S.caseData) return;
+  const c = S.caseData.case, act = b.dataset.act;
+  if(act === 'edit') renderCaseHead(true);
+  else if(act === 'cancel-edit') renderCaseHead(false);
+  else if(act === 'toggle-status'){
+    try { await api('PATCH', '/api/cases/' + c.id, {status: c.status === 'closed' ? 'open' : 'closed'}); await loadCases(); openCase(c.id, false); }
+    catch(err){ fail(err); }
+  } else if(act === 'delete-case'){
+    if(!confirm(`Delete case "${c.name}"?\n\nIts ${c.scan_count} scan(s) are kept as unassigned; notes and flags are deleted.`)) return;
+    try { await api('DELETE', '/api/cases/' + c.id); S.caseId = null; S.caseData = null; await loadCases(); showView('empty'); setUrl(true); toast('Case deleted'); }
+    catch(err){ fail(err); }
+  }
+});
+$('case-head').addEventListener('submit', async e => {
+  if(e.target.id !== 'case-edit') return;
+  e.preventDefault();
+  const name = $('ce-name').value.trim(); if(!name){ $('ce-name').focus(); return; }
+  try { await api('PATCH', '/api/cases/' + S.caseId, {name, description: $('ce-desc').value}); await loadCases(); openCase(S.caseId, false); }
+  catch(err){ fail(err); }
+});
+
+let scanRows = [];
+function renderScans(scans, unassigned){
+  scanRows = scans;
+  $('case-scans-hdr').textContent = `Scans (${scans.length})`;
+  if(!scans.length){
+    $('case-scans').innerHTML = `<div class="cs-empty" style="padding:30px"><div class="t" style="font-size:12px">NO SCANS YET</div>
+      <div style="font-size:11px;margin-top:6px">SIGINT Map / Surveillance / CCTV / ADS-B / Geo / Mobile sayfalarında “Save to case”.</div></div>`;
+    return;
+  }
+  $('case-scans').innerHTML = `<table class="cs-tbl"><thead><tr><th class="hide-sm">#</th><th>Time</th><th>Kind</th><th>Label</th><th>Devices</th><th>Vs previous</th><th class="hide-sm"></th></tr></thead><tbody>${
+    scans.map(s => `<tr data-scan="${E(s.id)}">
+      <td class="hide-sm">${E(s.id)}</td><td class="cs-time">${E(fmtT(s.created_at))}</td>
+      <td><span class="badge badge-info">${E(KINDS[s.kind]||s.kind)}</span>${s.monitor_id?` <span class="badge" style="color:var(--tm);border:1px solid var(--b)">MON #${E(s.monitor_id)}</span>`:''}</td>
+      <td class="cs-lbl" style="color:var(--t)">${E(s.label||'—')}</td>
+      <td>${E(s.device_count)}</td>
+      <td data-diff="${E(s.id)}">${diffBadges(S.diffCache[s.id])}</td>
+      <td class="hide-sm" style="text-align:right"><button type="button" class="cs-btn p">Open →</button></td></tr>`).join('')
+  }</tbody></table>`;
+  loadDiffBadges(scans.map(s => s.id));
+}
+async function loadDiffBadges(ids){
+  const todo = ids.filter(id => !S.diffCache[id]);
+  const worker = async () => {
+    while(todo.length){
+      const id = todo.shift();
+      try { const j = await api('GET', `/api/scans/${id}/diff?summary=1`); S.diffCache[id] = j.counts; }
+      catch(e){ S.diffCache[id] = null; }
+      const td = document.querySelector(`td[data-diff="${id}"]`);
+      if(td) td.innerHTML = S.diffCache[id] ? diffBadges(S.diffCache[id]) : '—';
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+}
+$('case-scans').addEventListener('click', e => {
+  const tr = e.target.closest('tr[data-scan]'); if(tr) openScan(parseInt(tr.dataset.scan, 10), true);
+});
+
+function renderNotes(){
+  const notes = S.caseData.notes || [];
+  $('case-notes').innerHTML = notes.length ? notes.map(n => `<div class="cs-note"><div style="min-width:0">
+      <div class="body">${E(n.body)}</div>
+      <div class="m">${E(fmtT(n.created_at))}${n.scan_id?` · <button type="button" class="cs-link" data-open-scan="${E(n.scan_id)}">scan #${E(n.scan_id)}</button>`:''}${n.dev_key?` · <button type="button" class="cs-link" data-open-dev="${E(n.dev_key)}">${E(n.dev_key)}</button>`:''}</div></div>
+      <button type="button" class="cs-x" data-del-note="${E(n.id)}" title="Delete note">✕</button></div>`).join('')
+    : '<div class="cs-msg">No notes yet.</div>';
+}
+$('note-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const body = $('note-body').value.trim(); if(!body || !S.caseId) return;
+  try { await api('POST', `/api/cases/${S.caseId}/notes`, {body}); $('note-body').value = ''; openCase(S.caseId, false); loadCases(); }
+  catch(err){ fail(err); }
+});
+function renderFlags(){
+  const flags = S.caseData.flags || [];
+  $('case-flags').innerHTML = flags.length ? flags.map(f => `<div class="cs-flag">
+      <span class="cs-dot" style="background:${FLAG_COLORS[f.color]||'#F87171'}"></span>
+      <div style="min-width:0;flex:1"><button type="button" class="cs-link" data-open-dev="${E(f.dev_key)}">${E(f.name || f.dev_key)}</button>
+        ${f.label?` <span style="color:var(--t)">— ${E(f.label)}</span>`:''}
+        <div class="cs-key">${E(f.type||'')} · ${E(f.dev_key)}</div></div>
+      <button type="button" class="cs-x" data-unflag="${E(f.dev_key)}" title="Unflag">✕</button></div>`).join('')
+    : '<div class="cs-msg">No flagged devices. Bir cihazı açıp “Flag” ile işaretle.</div>';
+}
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-open-scan],[data-open-dev],[data-del-note],[data-unflag]');
+  if(!t) return;
+  if(t.dataset.openScan) openScan(parseInt(t.dataset.openScan, 10), true);
+  else if(t.dataset.openDev) openDevice(t.dataset.openDev, true);
+  else if(t.dataset.delNote){
+    if(!confirm('Delete this note?')) return;
+    try { await api('DELETE', '/api/notes/' + t.dataset.delNote); if(S.caseId) openCase(S.caseId, false); loadCases(); if(S.devKey) openDevice(S.devKey, false); }
+    catch(err){ fail(err); }
+  } else if(t.dataset.unflag){
+    const cid = parseInt(t.dataset.unflagCase || S.caseId, 10);
+    try { await api('DELETE', `/api/cases/${cid}/flags/${encodeURIComponent(t.dataset.unflag)}`);
+      if(S.caseId && !S.scan) openCase(S.caseId, false); loadCases(); if(S.devKey) openDevice(S.devKey, false); }
+    catch(err){ fail(err); }
+  }
+});
+
+/* ── Scan view ── */
+let map = null, mapLayer = null, markerByKey = {};
+function ensureMap(){
+  if(map || typeof L === 'undefined') return map;
+  map = L.map('cs-map', {preferCanvas: true, worldCopyJump: true}).setView([39, 35], 5);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 19}).addTo(map);
+  mapLayer = L.layerGroup().addTo(map);
+  return map;
+}
+async function openScan(id, push){
+  let j;
+  try { j = await api('GET', '/api/scans/' + id); }
+  catch(e){ fail(e); if(e.status === 404){ showView('empty'); S.scan = null; setUrl(false); } return; }
+  S.scan = j.scan; S.diff = null; S.diffMode = false; S.filter = 'all'; S.q = ''; $('scan-q').value = '';
+  S.caseId = S.scan.case_id || null; S.unView = !S.scan.case_id;
+  $('v-empty').hidden = true; $('v-case').hidden = true; $('v-scan').hidden = false;
+  renderCaseList(); renderScanHead(); renderScanBody(true);
+  setUrl(push);
+}
+function renderScanHead(){
+  const s = S.scan;
+  const caseOpts = `<option value="">— Unassigned —</option>` + S.cases.map(c =>
+    `<option value="${E(c.id)}" ${c.id===s.case_id?'selected':''}>${E(c.name)}${c.status==='closed'?' (closed)':''}</option>`).join('');
+  const c = S.diffMode && S.diff ? S.diff.counts : null;
+  $('scan-head').innerHTML = `<div class="cs-head">
+    <div style="min-width:0;flex:1 1 320px">
+      <div style="margin-bottom:6px"><button type="button" class="cs-link" data-act="back">← ${s.case_id ? E(s.case_name || 'Case #' + s.case_id) : 'Unassigned scans'}</button></div>
+      <div class="cs-h1">Scan #${E(s.id)} · ${E(KINDS[s.kind]||s.kind)}${s.label?` · <span style="color:var(--td)">${E(s.label)}</span>`:''}</div>
+      <div class="cs-meta">${E(fmtT(s.created_at))} · ${E(s.device_count)} DEVICES${num(s.lat)!==null?` · CENTER ${E(num(s.lat).toFixed(4))}, ${E(num(s.lon).toFixed(4))}`:''}${s.monitor_id?` · MONITOR #${E(s.monitor_id)}`:''}${s.prev_id?` · PREVIOUS #${E(s.prev_id)}`:' · FIRST SCAN IN THIS AREA'}</div>
+      ${c?`<div style="margin-top:8px">${diffBadges(c)} <span class="cs-meta">vs scan #${E(S.diff.old_scan)}</span></div>`:''}
+    </div>
+    <div class="cs-actions">
+      <button type="button" class="cs-btn ${S.diffMode?'on':'p'}" data-act="diff" ${s.prev_id?'':'disabled title="No earlier scan in this area"'}>⇄ Compare with previous</button>
+      <select id="scan-move" style="width:auto;max-width:200px;padding:5px 8px;font-size:11px" aria-label="Move to case">${caseOpts}</select>
+      <button type="button" class="cs-btn d" data-act="delete-scan">Delete</button>
+      <a class="cs-btn" href="/timeline?scan=${encodeURIComponent(s.id)}" style="text-decoration:none">Timeline</a>
+      ${exportLinks('/api/scans/' + s.id + '/export/')}
+    </div></div>`;
+}
+$('scan-head').addEventListener('click', async e => {
+  const b = e.target.closest('[data-act]'); if(!b || !S.scan) return;
+  const s = S.scan;
+  if(b.dataset.act === 'back'){ if(s.case_id) openCase(s.case_id, true); else openUnassigned(true); }
+  else if(b.dataset.act === 'diff'){
+    if(!S.diffMode && !S.diff){
+      try { S.diff = await api('GET', `/api/scans/${s.id}/diff` + (s.prev_id ? `?against=${s.prev_id}` : '')); S.diffCache[s.id] = S.diff.counts; }
+      catch(err){ fail(err); return; }
+    }
+    S.diffMode = !S.diffMode; S.filter = 'all';
+    renderScanHead(); renderScanBody(false);
+  } else if(b.dataset.act === 'delete-scan'){
+    if(!confirm(`Delete scan #${s.id} (${s.device_count} devices)? This cannot be undone.`)) return;
+    try { await api('DELETE', '/api/scans/' + s.id); const cid = s.case_id; S.scan = null; delete S.diffCache[s.id]; await loadCases();
+      if(cid) openCase(cid, true); else openUnassigned(true); toast('Scan deleted'); }
+    catch(err){ fail(err); }
+  }
+});
+$('scan-head').addEventListener('change', async e => {
+  if(e.target.id !== 'scan-move' || !S.scan) return;
+  const v = e.target.value;
+  try { const j = await api('PATCH', '/api/scans/' + S.scan.id, {case_id: v ? parseInt(v, 10) : null});
+    S.scan.case_id = j.scan.case_id; const c = S.cases.find(x => x.id === j.scan.case_id); S.scan.case_name = c ? c.name : null;
+    S.caseId = S.scan.case_id; S.unView = !S.scan.case_id;
+    await loadCases(); renderScanHead(); toast(v ? `Moved to "${c ? c.name : v}"` : 'Moved to unassigned'); }
+  catch(err){ fail(err); renderScanHead(); }
+});
+
+function scanItems(){
+  // [{key, d (full or brief), st: new|gone|changed|same|null, changes}]
+  const s = S.scan;
+  if(!S.diffMode || !S.diff) return s.devices.map(d => ({key: d._key, d, st: null}));
+  const nw = new Set(S.diff.new.map(x => x.key)), ch = {};
+  S.diff.changed.forEach(x => ch[x.key] = x.changes);
+  const items = s.devices.map(d => ({key: d._key, d, st: nw.has(d._key) ? 'new' : ch[d._key] ? 'changed' : 'same', changes: ch[d._key]}));
+  S.diff.gone.forEach(g => items.push({key: g.key, d: Object.assign({}, g, {ssid: g.name}), st: 'gone'}));
+  return items;
+}
+const ST_STYLE = {
+  null: d => ({radius: 6, color: riskColor(d.risk), fillColor: riskColor(d.risk), fillOpacity: .75, weight: 1, opacity: .9}),
+  new: () => ({radius: 7, color: '#4ADE80', fillColor: '#4ADE80', fillOpacity: .85, weight: 2, opacity: 1}),
+  changed: () => ({radius: 7, color: '#FBBF24', fillColor: '#FBBF24', fillOpacity: .85, weight: 2, opacity: 1}),
+  same: () => ({radius: 4, color: '#6B7280', fillColor: '#6B7280', fillOpacity: .3, weight: 1, opacity: .4}),
+  gone: () => ({radius: 6, color: '#9CA3AF', fillColor: '#9CA3AF', fillOpacity: .08, weight: 2, opacity: .9, dashArray: '3,3'}),
+};
+function chgText(ch){
+  if(!ch) return '';
+  return Object.entries(ch).map(([k, v]) => k === 'moved_m' ? `moved ${v} m` : `${k}: ${v && v[0] != null ? v[0] : '∅'} → ${v && v[1] != null ? v[1] : '∅'}`).join(' · ');
+}
+let curItems = [];
+function renderScanBody(fit){
+  const items = scanItems();
+  const cnt = {all: items.length, new: 0, gone: 0, changed: 0};
+  items.forEach(i => { if(cnt[i.st] !== undefined) cnt[i.st]++; });
+  $('scan-tabs').innerHTML = S.diffMode
+    ? [['all','All',''],['new','New','n'],['gone','Gone','o'],['changed','Changed','c']].map(([k, l, cl]) =>
+        `<button type="button" class="cs-tab ${cl} ${S.filter===k?'active':''}" data-filter="${k}">${l} ${cnt[k]}</button>`).join('')
+    : `<span class="cs-tab active">All ${cnt.all}</span><span style="font-size:10px;color:var(--tm);align-self:center">“Compare with previous” → değişim görünümü</span>`;
+  $('cs-legend').innerHTML = S.diffMode
+    ? `<span><i class="cs-dot" style="background:#4ADE80"></i>NEW</span><span><i class="cs-dot" style="border:2px dashed #9CA3AF;width:8px;height:8px"></i>GONE</span><span><i class="cs-dot" style="background:#FBBF24"></i>CHANGED</span><span><i class="cs-dot" style="background:#6B7280;opacity:.5"></i>UNCHANGED</span>`
+    : `<span><i class="cs-dot" style="background:#F87171"></i>RISK ≥70</span><span><i class="cs-dot" style="background:#FBBF24"></i>40–69</span><span><i class="cs-dot" style="background:#A78BFA"></i>&lt;40</span>`;
+  // Harita
+  if(ensureMap()){
+    mapLayer.clearLayers(); markerByKey = {};
+    const pts = [];
+    // önce soluk olanlar, üste renkliler
+    const order = {same: 0, gone: 1, null: 2, changed: 3, new: 4};
+    items.slice().sort((a, b) => order[a.st] - order[b.st]).forEach(it => {
+      const la = num(it.d.lat), lo = num(it.d.lon);
+      if(la === null || lo === null) return;
+      const m = L.circleMarker([la, lo], ST_STYLE[it.st](it.d));
+      m.bindTooltip(`${E(devName(it.d))}${it.st && it.st !== 'same' ? ' · ' + it.st.toUpperCase() : ''}`, {direction: 'top'});
+      m.on('click', () => openDevice(it.key, true));
+      m.addTo(mapLayer); markerByKey[it.key] = m; pts.push([la, lo]);
+    });
+    setTimeout(() => {
+      map.invalidateSize();
+      if(fit){
+        if(pts.length) map.fitBounds(pts, {padding: [30, 30], maxZoom: 16});
+        else if(num(S.scan.lat) !== null) map.setView([S.scan.lat, S.scan.lon], 13);
+      }
+    }, 30);
+  }
+  renderScanList(items);
+}
+function renderScanList(items){
+  items = items || scanItems();
+  const q = S.q.toLowerCase();
+  curItems = items.filter(it => (S.filter === 'all' || it.st === S.filter) && (!q || JSON.stringify(it.d).toLowerCase().includes(q) || String(it.key).toLowerCase().includes(q)));
+  const LIMIT = 600;
+  $('scan-list').innerHTML = curItems.length ? curItems.slice(0, LIMIT).map((it, i) => {
+    const d = it.d, st = it.st;
+    const tag = st && st !== 'same' ? `<span class="badge ${st==='new'?'badge-ok':st==='changed'?'badge-warn':''}" ${st==='gone'?'style="color:#9CA3AF;border:1px solid rgba(156,163,175,0.3)"':''}>${st.toUpperCase()}</span>` : '';
+    return `<button type="button" class="cs-dev ${st?'st-'+st:''}" data-i="${i}" ${st?'':`style="border-left-color:${riskColor(d.risk)}"`}>
+      <div class="nm"><span>${E(devName(d))}</span>${tag}</div>
+      <div>${E(d.type||'?')} · ${E(d.source||'—')} · R:${E(num(d.risk)||0)}${d.encryption?' · '+E(d.encryption):''}${d.ip&&d.ip!==devName(d)?' · '+E(d.ip):''}</div>
+      ${st==='changed'?`<div class="cs-chg">${E(chgText(it.changes))}</div>`:''}
+    </button>`;}).join('') + (curItems.length > LIMIT ? `<div class="cs-more">+${curItems.length - LIMIT} more — filtrele</div>` : '')
+    : '<div class="cs-msg" style="text-align:center;padding:20px">No devices.</div>';
+}
+$('scan-tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-filter]'); if(!b) return;
+  S.filter = b.dataset.filter; renderScanBody(false);
+});
+$('scan-q').addEventListener('input', () => { S.q = $('scan-q').value; renderScanList(); });
+$('scan-list').addEventListener('click', e => {
+  const b = e.target.closest('.cs-dev[data-i]'); if(!b) return;
+  const it = curItems[parseInt(b.dataset.i, 10)]; if(!it) return;
+  const m = markerByKey[it.key];
+  if(m && map){ map.panTo(m.getLatLng()); m.openTooltip(); }
+  openDevice(it.key, true);
+});
+
+/* ── Device panel ── */
+let dvMap = null, dvLayer = null;
+function closeDevice(push){
+  S.devKey = null; S.hist = null; $('cs-drawer').hidden = true;
+  if(push !== undefined) setUrl(push);
+}
+$('dv-close').addEventListener('click', () => closeDevice(true));
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('cs-drawer').hidden && !document.querySelector('.so-cs-ov')) closeDevice(true); });
+
+async function openDevice(key, push){
+  if(!key) return;
+  key = String(key).slice(0, 300);
+  S.devKey = key;
+  $('cs-drawer').hidden = false;
+  $('dv-title').textContent = '…'; $('dv-key').textContent = key;
+  $('dv-body').innerHTML = '<div class="cs-msg">Loading…</div>';
+  setUrl(push);
+  let h;
+  try { h = await api('GET', '/api/devices/history?key=' + encodeURIComponent(key)); }
+  catch(e){
+    if(S.devKey !== key) return;
+    $('dv-title').textContent = 'Not found';
+    $('dv-body').innerHTML = `<div class="cs-msg">${E(e.status === 404 ? 'Bu cihaz için kayıtlı tarama yok.' : e.message)}</div>`;
+    return;
+  }
+  if(S.devKey !== key) return;
+  S.hist = h; renderDevice();
+}
+function renderDevice(){
+  const h = S.hist, d = h.latest || (h.profile && h.profile.data) || {}, sm = h.summary || {};
+  const prof = h.profile;
+  $('dv-title').textContent = (prof && prof.name) || devName(d);
+  $('dv-key').textContent = h.key;
+  const openCases = S.cases.filter(c => c.status !== 'closed');
+  const defCase = (S.scan && S.scan.case_id) || S.caseId || (openCases[0] && openCases[0].id) || '';
+  const caseSel = openCases.length
+    ? `<select id="dv-case" aria-label="Case">${openCases.map(c => `<option value="${E(c.id)}" ${c.id===defCase?'selected':''}>${E(c.name)}</option>`).join('')}</select>`
+    : '<span class="cs-msg">Önce bir vaka oluştur.</span>';
+  const flagged = h.flags || [];
+  const sight = (h.sightings || []);
+  $('dv-body').innerHTML = `
+    <div class="dv-row" style="gap:6px">
+      <span class="badge badge-info" style="flex:0 0 auto">${E(String(d.type||'?').toUpperCase())}</span>
+      ${flagged.map(f => `<span class="badge" style="flex:0 0 auto;color:${FLAG_COLORS[f.color]||'#F87171'};border:1px solid ${FLAG_COLORS[f.color]||'#F87171'}66">⚑ ${E(f.case_name)}${f.label?' — '+E(f.label):''}</span>`).join('')}
+      ${prof?'<span class="badge badge-ok" style="flex:0 0 auto">PROFILE</span>':''}
+      <a class="badge badge-info" style="flex:0 0 auto;text-decoration:none;margin-left:auto" href="/graph?key=${encodeURIComponent(h.key || '')}">Graph</a>
+    </div>
+    <div class="dv-stats" style="margin-top:12px">
+      <div class="dv-stat"><div class="v">${E(sm.count||0)}</div><div class="l">Sightings</div></div>
+      <div class="dv-stat"><div class="v">${E(sm.distinct_locations||0)}</div><div class="l">Distinct locations</div></div>
+      <div class="dv-stat"><div class="v">${E((h.cases||[]).length)}</div><div class="l">Cases</div></div>
+      <div class="dv-stat"><div class="v" style="font-size:12px">${E(fmtT(sm.first_seen))}</div><div class="l">First seen</div></div>
+      <div class="dv-stat"><div class="v" style="font-size:12px">${E(fmtT(sm.last_seen))}</div><div class="l">Last seen</div></div>
+      <div class="dv-stat"><div class="v" style="font-size:11px">${E((sm.sources||[]).join(', ')||'—')}</div><div class="l">Sources</div></div>
+    </div>
+    ${(h.cases||[]).length?`<div class="cs-msg">In cases: ${(h.cases).map(c => `<button type="button" class="cs-link" data-goto-case="${E(c.id)}">${E(c.name)}</button>`).join(', ')}</div>`:''}
+
+    <div class="dv-sec"><h4>Sighting positions</h4><div id="dv-map"></div></div>
+
+    <div class="dv-sec"><h4>Sightings (${E(sight.length)})</h4>
+      <div class="cs-tbl-wrap"><table id="dv-sight"><thead><tr><th>Time</th><th>Kind</th><th>Label</th><th>Source</th><th>Risk</th><th>Location</th></tr></thead><tbody>
+      ${sight.length ? sight.map(s => `<tr data-scan="${E(s.scan_id)}" title="Open scan #${E(s.scan_id)}">
+        <td style="white-space:nowrap">${E(fmtT(s.created_at))}</td><td>${E(KINDS[s.kind]||s.kind)}</td>
+        <td style="overflow-wrap:anywhere">${E(s.label||'#'+s.scan_id)}</td><td>${E(s.source||'—')}</td>
+        <td style="color:${riskColor(s.risk)}">${E(s.risk||0)}</td>
+        <td style="white-space:nowrap">${num(s.lat)!==null?E(num(s.lat).toFixed(4)+', '+num(s.lon).toFixed(4)):'—'}</td></tr>`).join('')
+        : '<tr><td colspan="6">—</td></tr>'}
+      </tbody></table></div></div>
+
+    <div class="dv-sec"><h4>Profile</h4>
+      <div class="dv-row"><input id="dv-pname" maxlength="200" placeholder="Profile name (ör. Hedef router)" value="${E(prof ? prof.name : '')}"></div>
+      <textarea id="dv-pnote" maxlength="5000" placeholder="Profile note…" style="margin-top:6px">${E(prof ? prof.note : '')}</textarea>
+      <div class="dv-row" style="justify-content:flex-end;margin-top:6px">
+        ${prof?'<button type="button" class="cs-btn d" data-dv="prof-del">Remove profile</button>':''}
+        <button type="button" class="cs-btn g" data-dv="prof-save" ${h.latest||prof?'':'disabled'}>${prof?'Save profile':'+ Create profile'}</button></div>
+      <div class="cs-msg" id="dv-pmsg"></div>
+    </div>
+
+    <div class="dv-sec"><h4>Flag & note (case)</h4>
+      <div class="dv-row">${caseSel}</div>
+      <div class="dv-row" style="margin-top:6px">
+        <input id="dv-flabel" maxlength="200" placeholder="Flag label (optional)">
+        <select id="dv-fcolor" style="flex:0 0 110px" aria-label="Flag color">${Object.keys(FLAG_COLORS).map(c => `<option value="${c}">${c}</option>`).join('')}</select>
+        <button type="button" class="cs-btn" data-dv="flag" id="dv-flag-btn" ${openCases.length?'':'disabled'}>Flag</button>
+      </div>
+      <textarea id="dv-note" maxlength="5000" placeholder="Note about this device…" style="margin-top:8px"></textarea>
+      <div class="dv-row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="cs-btn p" data-dv="note" ${openCases.length?'':'disabled'}>+ Add note</button></div>
+      <div class="cs-msg" id="dv-fmsg"></div>
+    </div>
+
+    <div class="dv-sec"><h4>Co-occurring devices</h4>
+      <div class="dv-chips">${(h.co_occurring||[]).length ? h.co_occurring.map(c => `<button type="button" class="dv-chip" data-open-dev="${E(c.key)}" title="${E(c.key)}">${E(c.name||c.key)} <b>×${E(c.together)}</b></button>`).join('') : '<span class="cs-msg">En az 2 taramada birlikte görülen cihaz yok.</span>'}</div></div>
+
+    <div class="dv-sec"><h4>Related devices</h4>
+      <div class="dv-chips">${(h.related||[]).length ? h.related.map(c => `<button type="button" class="dv-chip" data-open-dev="${E(c.key)}" title="${E(c.key)}">${E(c.name||c.key)} <b>${E(c.why)}</b></button>`).join('') : '<span class="cs-msg">—</span>'}</div></div>
+
+    <div class="dv-sec"><h4>Latest data</h4>
+      <details><summary style="cursor:pointer;font-size:11px;color:var(--td)">${E(Object.keys(d).length)} fields</summary>
+      <table class="dv-kv">${Object.entries(d).filter(([k, v]) => v !== null && v !== '' && typeof v !== 'object').slice(0, 80).map(([k, v]) => `<tr><td>${E(k)}</td><td>${E(String(v).slice(0, 300))}</td></tr>`).join('')}</table></details></div>`;
+  updateFlagBtn();
+  const sel = $('dv-case'); if(sel) sel.addEventListener('change', updateFlagBtn);
+  renderDvMap(sight);
+}
+function updateFlagBtn(){
+  const sel = $('dv-case'), btn = $('dv-flag-btn'); if(!sel || !btn || !S.hist) return;
+  const f = (S.hist.flags || []).find(x => String(x.case_id) === sel.value);
+  btn.textContent = f ? '✕ Unflag' : 'Flag';
+  btn.className = 'cs-btn ' + (f ? 'd' : '');
+  btn.dataset.flagged = f ? '1' : '';
+  if(f){ $('dv-flabel').value = f.label || ''; $('dv-fcolor').value = f.color || 'red'; }
+}
+function renderDvMap(sight){
+  if(typeof L === 'undefined') return;
+  if(dvMap){ dvMap.remove(); dvMap = null; }
+  const pts = sight.slice().reverse().filter(s => num(s.lat) !== null && num(s.lon) !== null).map(s => [num(s.lat), num(s.lon), s]);
+  dvMap = L.map('dv-map', {preferCanvas: true, attributionControl: false, zoomControl: true});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {subdomains: 'abcd', maxZoom: 19}).addTo(dvMap);
+  dvLayer = L.layerGroup().addTo(dvMap);
+  if(!pts.length){ dvMap.setView([39, 35], 4); return; }
+  if(pts.length > 1) L.polyline(pts.map(p => [p[0], p[1]]), {color: '#A78BFA', weight: 2, opacity: .8, dashArray: '5,5'}).addTo(dvLayer);
+  pts.forEach((p, i) => {
+    const last = i === pts.length - 1;
+    L.circleMarker([p[0], p[1]], {radius: last ? 7 : 5, color: last ? '#4ADE80' : '#A78BFA', fillColor: last ? '#4ADE80' : '#A78BFA', fillOpacity: .8, weight: 1})
+      .bindTooltip(`${E(fmtT(p[2].created_at))} · ${E(KINDS[p[2].kind]||p[2].kind)} #${E(p[2].scan_id)}`).addTo(dvLayer);
+  });
+  setTimeout(() => { dvMap.invalidateSize(); if(pts.length === 1) dvMap.setView([pts[0][0], pts[0][1]], 15); else dvMap.fitBounds(pts.map(p => [p[0], p[1]]), {padding: [20, 20], maxZoom: 17}); }, 30);
+}
+$('dv-body').addEventListener('click', async e => {
+  const tr = e.target.closest('#dv-sight tr[data-scan]');
+  if(tr){ openScan(parseInt(tr.dataset.scan, 10), true); return; }
+  const gc = e.target.closest('[data-goto-case]');
+  if(gc){ openCase(parseInt(gc.dataset.gotoCase, 10), true); return; }
+  const b = e.target.closest('[data-dv]'); if(!b || !S.hist) return;
+  const h = S.hist, key = h.key, act = b.dataset.dv;
+  try {
+    if(act === 'prof-save'){
+      const name = $('dv-pname').value.trim(), note = $('dv-pnote').value;
+      if(h.profile) await api('PATCH', '/api/profiles?key=' + encodeURIComponent(key), {name, note});
+      else {
+        const j = await api('POST', '/api/profiles', {device: h.latest, name, note});
+        if(j.profile.dev_key !== key) toast('Profile saved under key ' + j.profile.dev_key);
+      }
+      toast('Profile saved'); openDevice(key, false);
+    } else if(act === 'prof-del'){
+      if(!confirm('Remove this device profile?')) return;
+      await api('DELETE', '/api/profiles?key=' + encodeURIComponent(key)); openDevice(key, false);
+    } else if(act === 'flag' || act === 'note'){
+      const cid = parseInt(($('dv-case') || {}).value, 10); if(!cid) return;
+      if(act === 'flag'){
+        if(b.dataset.flagged) await api('DELETE', `/api/cases/${cid}/flags/${encodeURIComponent(key)}`);
+        else await api('POST', `/api/cases/${cid}/flags`, {dev_key: key, label: $('dv-flabel').value.trim(), color: $('dv-fcolor').value,
+                                                            data: {name: devName(h.latest || {}), type: (h.latest || {}).type || ''}});
+      } else {
+        const body = $('dv-note').value.trim(); if(!body){ $('dv-note').focus(); return; }
+        await api('POST', `/api/cases/${cid}/notes`, {body, dev_key: key, scan_id: S.scan ? S.scan.id : undefined});
+        toast('Note added');
+      }
+      await loadCases();
+      if(S.caseId === cid && !S.scan) openCase(cid, false);
+      openDevice(key, false);
+    }
+  } catch(err){ fail(err); }
+});
+
+/* ── Başlat ── */
+(async () => { await loadCases(); await route(); })();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,581 @@
+{% extends "base.html" %}
+{% block title %}Maritime — SignalOps{% endblock %}
+{% block extra_style %}
+/* ── Layout ── */
+.mt-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.mt-head-right{display:flex;align-items:center;gap:10px}
+.mt-lbl{font-size:10px;color:var(--tm);letter-spacing:2px;margin-bottom:6px;text-transform:uppercase}
+.mt-ctl-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.mt-coords{display:flex;gap:8px}
+.mt-coords input{width:130px}
+.mt-presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.mt-chip{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.8px;
+  padding:5px 10px;border-radius:5px;cursor:pointer;border:1px solid rgba(255,255,255,0.08);
+  background:transparent;color:var(--td);transition:all .15s;white-space:nowrap}
+.mt-chip:hover{color:var(--t);border-color:rgba(138, 122, 184,0.3)}
+.mt-chip.active{background:rgba(138, 122, 184,0.14);color:var(--pl);border-color:rgba(138, 122, 184,0.35)}
+.mt-chip .dotc{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.mt-chip .cnt{color:var(--tm);margin-left:4px;font-family:'JetBrains Mono',monospace;font-size:10px}
+#case-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-height:0}
+#case-tools:empty{display:none}
+
+.stat-box{background:var(--s);border:1px solid var(--b);border-radius:8px;padding:10px 14px;text-align:center;min-width:0}
+.stat-box .val{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;line-height:1}
+.stat-box .lbl{font-size:9px;letter-spacing:2px;color:var(--tm);margin-top:3px;text-transform:uppercase}
+#stats-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.cat-mini{display:flex;flex-wrap:wrap;gap:4px 8px;justify-content:center;font-size:10px;color:var(--td);line-height:1.4}
+.cat-mini span b{color:var(--t);font-weight:600}
+
+#mt-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:10px;height:calc(100vh - 330px);min-height:460px}
+.mt-map-card{position:relative;z-index:0;isolation:isolate;border:1px solid var(--b);border-radius:8px;overflow:hidden;background:#0C0C10;min-height:0}
+#ais-map{position:absolute;inset:0}
+.mt-side{background:var(--s);border:1px solid var(--b);border-radius:8px;display:flex;flex-direction:column;min-height:0;min-width:0}
+.mt-side-top{padding:10px;border-bottom:1px solid var(--b);display:flex;flex-direction:column;gap:8px}
+.mt-side-row{display:flex;gap:6px}
+.mt-side-row select{width:auto;flex:0 0 auto;padding:6px 8px;font-size:11px}
+.mt-side-row input{flex:1;min-width:0;padding:6px 10px;font-size:11px}
+#cat-chips{display:flex;flex-wrap:wrap;gap:4px}
+#cat-chips .mt-chip{padding:3px 7px;font-size:10px}
+#vessel-list{overflow-y:auto;flex:1;min-height:0}
+.v-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.03);cursor:pointer}
+.v-row:hover{background:rgba(138, 122, 184,0.06)}
+.v-row.selected{background:rgba(138, 122, 184,0.14)}
+.v-row.stale{opacity:0.55}
+.v-ico{width:22px;height:22px;flex:0 0 22px;display:flex;align-items:center;justify-content:center}
+.v-main{flex:1;min-width:0}
+.v-name{font-size:11.5px;color:var(--t);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v-sub{font-size:10px;color:var(--td);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v-right{text-align:right;flex:0 0 auto}
+.v-spd{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:var(--t)}
+.v-risk{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:.5px}
+.r-lo{background:rgba(116, 176, 149,0.1);color:#74B095}
+.r-md{background:rgba(201, 161, 90,0.14);color:#C9A15A}
+.r-hi{background:rgba(199, 123, 123,0.16);color:#C77B7B}
+.empty-note{padding:24px 14px;text-align:center;color:var(--tm);font-size:11px;line-height:1.6}
+
+/* notices */
+.mt-notice{border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:11.5px;line-height:1.55;display:flex;gap:10px;align-items:flex-start}
+.mt-notice b{font-family:'Rajdhani',sans-serif;letter-spacing:1px;font-size:13px}
+.mt-notice a{color:var(--pl)}
+.n-warn{background:rgba(201, 161, 90,0.08);border:1px solid rgba(201, 161, 90,0.3);color:#D9BD8C}
+.n-info{background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.3);color:#BFDBFE}
+.n-err{background:rgba(199, 123, 123,0.08);border:1px solid rgba(199, 123, 123,0.35);color:#FECACA}
+.n-tr{display:block;color:var(--td);font-size:10.5px;margin-top:2px}
+
+/* detail */
+.detail-panel{background:var(--s);border:1px solid rgba(138, 122, 184,0.3);border-radius:8px;padding:16px;display:none;margin-top:12px}
+.dp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+#dp-title{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;letter-spacing:1px;color:var(--t);word-break:break-word}
+.dp-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.detail-grid{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 12px;font-size:11px;align-items:baseline}
+.detail-grid .dk{color:var(--tm);letter-spacing:1px;font-size:10px;text-transform:uppercase;white-space:nowrap}
+.detail-grid .dv{color:var(--t);font-weight:600;word-break:break-word}
+.detail-section-hdr{font-size:9px;color:var(--tm);letter-spacing:2.5px;margin-bottom:10px;text-transform:uppercase;font-family:'Rajdhani',sans-serif;font-weight:700;padding-bottom:4px;border-bottom:1px solid rgba(138, 122, 184,0.15)}
+.flag-item{border-left:2px solid #C77B7B;padding:4px 0 4px 9px;margin-bottom:8px}
+.flag-item.info{border-left-color:#7C9BC9}
+.flag-item .ft{font-size:11px;color:var(--t);font-weight:600}
+.flag-item .fx{font-size:10px;color:var(--td);margin-top:2px;line-height:1.45}
+.dp-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.dp-links a,.dp-links button{font-size:11px;padding:6px 12px;text-decoration:none;display:inline-flex;align-items:center}
+.cat-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;border:1px solid}
+
+/* map bits */
+.ship-ico{background:transparent;border:none}
+.ship-ico svg{display:block;overflow:visible}
+.leaflet-control-attribution{background:rgba(8,11,9,0.7)!important;color:var(--tm)!important;font-size:9px!important}
+.leaflet-control-attribution a{color:var(--td)!important}
+.mt-legend{position:absolute;left:10px;bottom:10px;z-index:500;background:rgba(11, 11, 15,0.88);border:1px solid rgba(138, 122, 184,0.25);
+  border-radius:8px;padding:7px 9px;font-size:9.5px;color:var(--td);display:flex;flex-wrap:wrap;gap:4px 10px;max-width:calc(100% - 20px);pointer-events:none}
+.mt-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.refresh-ring{width:14px;height:14px;border-radius:50%;border:2px solid rgba(138, 122, 184,0.2);border-top-color:var(--p);animation:spin 1s linear infinite;display:inline-block;vertical-align:middle}
+
+@media (max-width:900px){
+  .mt-head{flex-wrap:wrap}
+  .mt-ctl-row > div{flex:1 1 100%;min-width:0}
+  .mt-coords input{flex:1;width:auto;min-width:0}
+  .mt-coords .btn{flex:0 0 auto;min-width:44px}
+  .mt-ctl-row .btn{min-height:40px}
+  #radius-sel{width:100%}
+  #stats-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #mt-layout{grid-template-columns:minmax(0,1fr);height:auto;min-height:0}
+  .mt-map-card{height:55vh;min-height:320px}
+  .mt-side{max-height:520px}
+  .dp-cols{grid-template-columns:minmax(0,1fr)}
+  .v-row{min-height:44px}
+}
+@media (max-width:600px){
+  #stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #stats-row .stat-box:last-child{grid-column:1 / -1}
+  .stat-box{padding:8px 10px}
+  .stat-box .val{font-size:20px}
+  .detail-panel{padding:12px}
+  #dp-title{font-size:16px}
+}
+{% endblock %}
+{% block content %}
+<div class="mt-head">
+  <div class="section-hdr" style="margin:0">Maritime AIS Intelligence</div>
+  <div class="mt-head-right">
+    <span id="refresh-status" style="font-size:11px;color:var(--tm)"></span>
+    <label style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--td);cursor:pointer">
+      <input type="checkbox" id="auto-refresh" style="width:auto"> AUTO-REFRESH 30s
+    </label>
+  </div>
+</div>
+
+<div id="notices"></div>
+
+<!-- Controls -->
+<div class="card" style="padding:14px;margin-bottom:12px">
+  <div class="mt-ctl-row">
+    <div>
+      <div class="mt-lbl">Center coordinates</div>
+      <div class="mt-coords">
+        <input id="m-lat" placeholder="Latitude" inputmode="decimal" value="41.12">
+        <input id="m-lon" placeholder="Longitude" inputmode="decimal" value="29.06">
+        <button class="btn btn-g" id="btn-myloc" title="My location" style="padding:8px 12px"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></button>
+      </div>
+    </div>
+    <div>
+      <div class="mt-lbl">Radius</div>
+      <select id="radius-sel" style="width:120px">
+        <option value="10">10 km</option>
+        <option value="25">25 km</option>
+        <option value="50" selected>50 km</option>
+        <option value="100">100 km</option>
+        <option value="150">150 km</option>
+        <option value="200">200 km</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-p" id="scan-btn"> Scan</button>
+      <div id="case-tools"></div>
+    </div>
+  </div>
+  <div class="mt-presets" id="presets">
+    <span class="mt-lbl" style="margin:0 4px 0 0">Presets</span>
+    <button class="mt-chip" data-lat="41.12" data-lon="29.06" data-r="25">Istanbul Strait</button>
+    <button class="mt-chip" data-lat="40.20" data-lon="26.40" data-r="50">Dardanelles</button>
+    <button class="mt-chip" data-lat="40.85" data-lon="28.40" data-r="100">Sea of Marmara</button>
+    <button class="mt-chip" data-lat="36.80" data-lon="34.70" data-r="50">Mersin</button>
+    <button class="mt-chip" data-lat="60.10" data-lon="24.90" data-r="50">Gulf of Finland</button>
+    <button class="mt-chip" data-lat="51.95" data-lon="4.05" data-r="50">Rotterdam</button>
+  </div>
+</div>
+
+<!-- Stats -->
+<div id="stats-row">
+  <div class="stat-box"><div class="val" id="st-total" style="color:var(--pl)">—</div><div class="lbl">Vessels</div></div>
+  <div class="stat-box"><div class="val" id="st-moving" style="color:var(--g)">—</div><div class="lbl">Moving</div></div>
+  <div class="stat-box"><div class="val" id="st-anch" style="color:#7C9BC9">—</div><div class="lbl">Anchored / Moored</div></div>
+  <div class="stat-box"><div class="val" id="st-flag" style="color:#C77B7B">—</div><div class="lbl">Flagged</div></div>
+  <div class="stat-box"><div class="cat-mini" id="st-cats"><span style="color:var(--tm)">—</span></div><div class="lbl">By category</div></div>
+</div>
+
+<div id="mt-layout">
+  <div class="mt-map-card">
+    <div id="ais-map"></div>
+    <div class="mt-legend" id="legend"></div>
+  </div>
+  <div class="mt-side">
+    <div class="mt-side-top">
+      <div class="mt-side-row">
+        <input id="v-search" placeholder="Search name / MMSI / callsign">
+        <select id="v-sort" title="Sort">
+          <option value="risk">Risk</option>
+          <option value="speed">Speed</option>
+          <option value="name">Name</option>
+          <option value="age">Last seen</option>
+        </select>
+      </div>
+      <div id="cat-chips"></div>
+    </div>
+    <div id="vessel-list"><div class="empty-note">Pick a preset or enter coordinates and press SCAN.<br><span style="font-size:10px">Bir alan seçip taramayı başlatın.</span></div></div>
+  </div>
+</div>
+
+<div class="detail-panel" id="detail-panel">
+  <div class="dp-head">
+    <div style="min-width:0">
+      <div id="dp-title">—</div>
+      <div id="dp-sub" style="font-size:11px;color:var(--td);margin-top:3px"></div>
+    </div>
+    <button class="btn btn-outline" id="dp-close" style="padding:6px 12px;font-size:11px">✕</button>
+  </div>
+  <div class="dp-cols">
+    <div><div class="detail-section-hdr">Identity</div><div class="detail-grid" id="dp-id"></div></div>
+    <div><div class="detail-section-hdr">Kinematics / Voyage</div><div class="detail-grid" id="dp-kin"></div></div>
+    <div><div class="detail-section-hdr">Flags (heuristic)</div><div id="dp-flags"></div></div>
+  </div>
+  <div class="dp-links" id="dp-links"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/js/so-cases.js" defer></script>
+<script>
+(function () {
+'use strict';
+const $ = id => document.getElementById(id);
+
+const CATS = {
+  cargo:     {label:'Cargo',      color:'#4ADE80'},
+  tanker:    {label:'Tanker',     color:'#FB923C'},
+  passenger: {label:'Passenger',  color:'#60A5FA'},
+  fishing:   {label:'Fishing',    color:'#FBBF24'},
+  military:  {label:'Military',   color:'#E879F9'},
+  law:       {label:'Law enf.',   color:'#38BDF8'},
+  sar:       {label:'SAR',        color:'#F43F5E'},
+  tug:       {label:'Tug / Tow',  color:'#2DD4BF'},
+  pleasure:  {label:'Pleasure',   color:'#F472B6'},
+  other:     {label:'Other',      color:'#9CA3AF'},
+};
+const FLAG_HELP = {
+  invalid_mmsi: 'MMSI is malformed or a well-known placeholder (e.g. 000000000, 123456789). Often misconfigured transponders, sometimes deliberate identity hiding.',
+  unknown_mid: 'The first digits (MID) do not map to an ITU-allocated flag state. Could be a typo in the transponder setup or a fabricated identity.',
+  emergency_device: 'AIS-SART / MOB / EPIRB identity or nav status 14. Usually a distress beacon or a test transmission — check context.',
+  speed_implausible: 'Reported speed over ground is above 50 kn for a non high-speed craft. Typical of GPS glitches or spoofed data.',
+  dark: 'Vessel was moving, then stopped reporting for >30 min while the area was still covered by a live source. Possible AIS switch-off ("going dark") — or simply leaving receiver coverage.',
+  identity_mismatch: 'The same MMSI broadcast different ship names during this session. Can indicate identity sharing/spoofing or a crew renaming the unit.',
+  position_jump: 'Consecutive positions imply >60 kn. Classic sign of GPS spoofing/jamming or two transmitters sharing one MMSI.',
+  military: 'Ship type 35 (military ops). Informational — most warships do not broadcast AIS at all.',
+  law_enforcement: 'Ship type 55 (law enforcement). Informational.',
+};
+const INFO_FLAGS = new Set(['military', 'law_enforcement']);
+
+// ── State ──
+let vessels = [];
+let lastResp = null;
+let selected = null;
+let catFilter = null;
+let center = {lat: 41.12, lon: 29.06};
+let radius = 50;
+let reqSeq = 0;
+let autoTimer = null;
+let warmTimer = null;
+let warmTries = 0;
+let busy = false;
+
+// ── Map ──
+const map = L.map('ais-map', {zoomControl: true, worldCopyJump: true}).setView([center.lat, center.lon], 10);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap · CARTO', subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+const shipLayer = L.layerGroup().addTo(map);
+const areaLayer = L.layerGroup().addTo(map);
+const markers = new Map();
+window.aisMap = map;
+
+$('legend').innerHTML = Object.keys(CATS).map(k =>
+  `<span><i style="background:${CATS[k].color}"></i>${escapeHtml(CATS[k].label)}</span>`).join('');
+
+function catOf(v) { return CATS[v.category] ? v.category : 'other'; }
+function riskCls(r) { return r >= 50 ? 'r-hi' : r >= 20 ? 'r-md' : 'r-lo'; }
+function num(v) { return typeof v === 'number' && isFinite(v) ? v : null; }
+function fmtAge(s) {
+  s = num(s); if (s === null) return '—';
+  if (s < 60) return Math.round(s) + 's ago';
+  if (s < 3600) return Math.round(s / 60) + 'm ago';
+  return (s / 3600).toFixed(1) + 'h ago';
+}
+function flagEmoji(iso) {
+  if (!iso || !/^[A-Z]{2}$/.test(iso)) return '';
+  return String.fromCodePoint(...[...iso].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+}
+function vName(v) { return v.name || ('MMSI ' + v.mmsi); }
+
+function shipSvg(v, size) {
+  const c = CATS[catOf(v)].color;
+  const rot = num(v.heading) ?? num(v.cog);
+  const flagged = (v.risk || 0) >= 20;
+  const op = v.stale ? 0.4 : 1;
+  const ring = flagged ? `<circle cx="12" cy="12" r="11" fill="none" stroke="#F87171" stroke-width="1.6" stroke-dasharray="3 2"/>` : '';
+  if (rot === null || (num(v.sog) !== null && v.sog < 0.5)) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="opacity:${op}">${ring}<circle cx="12" cy="12" r="5" fill="${c}" stroke="#0b0f0b" stroke-width="1.5"/></svg>`;
+  }
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="opacity:${op}">${ring}<g transform="rotate(${rot.toFixed(0)} 12 12)"><path d="M12 2.5 L17 19 L12 15.5 L7 19 Z" fill="${c}" stroke="#0b0f0b" stroke-width="1.3" stroke-linejoin="round"/></g></svg>`;
+}
+
+function renderMap() {
+  shipLayer.clearLayers();
+  markers.clear();
+  vessels.forEach((v, i) => {
+    if (num(v.lat) === null || num(v.lon) === null) return;
+    if (catFilter && catOf(v) !== catFilter) return;
+    const sel = selected && selected === v.mmsi;
+    const size = sel ? 30 : 22;
+    const icon = L.divIcon({className: 'ship-ico', html: shipSvg(v, size), iconSize: [size, size], iconAnchor: [size / 2, size / 2]});
+    const m = L.marker([v.lat, v.lon], {icon, zIndexOffset: sel ? 1000 : (v.risk || 0)});
+    m.bindTooltip(`${escapeHtml(vName(v))} · ${escapeHtml(v.sog ?? '—')} kn`, {direction: 'top', offset: [0, -8]});
+    m.on('click', () => selectVessel(v.mmsi, false));
+    m.addTo(shipLayer);
+    markers.set(v.mmsi, m);
+  });
+}
+
+function renderArea() {
+  areaLayer.clearLayers();
+  L.circle([center.lat, center.lon], {radius: radius * 1000, color: '#8B5CF6', weight: 1, opacity: 0.6, fill: true, fillOpacity: 0.03, dashArray: '4 4', interactive: false}).addTo(areaLayer);
+}
+
+function filtered() {
+  const q = ($('v-search').value || '').trim().toLowerCase();
+  let list = vessels.filter(v => !catFilter || catOf(v) === catFilter);
+  if (q) list = list.filter(v => [v.name, v.mmsi, v.callsign, v.imo, v.destination].some(x => x && String(x).toLowerCase().includes(q)));
+  const s = $('v-sort').value;
+  const cmp = {
+    risk: (a, b) => (b.risk || 0) - (a.risk || 0) || (a.age_s || 0) - (b.age_s || 0),
+    speed: (a, b) => (num(b.sog) ?? -1) - (num(a.sog) ?? -1),
+    name: (a, b) => vName(a).localeCompare(vName(b)),
+    age: (a, b) => (a.age_s || 0) - (b.age_s || 0),
+  }[s] || (() => 0);
+  return list.slice().sort(cmp);
+}
+
+function renderList() {
+  const el = $('vessel-list');
+  const list = filtered();
+  if (!lastResp) return;
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-note">${vessels.length ? 'No vessels match the filter.' : (lastResp.warming_up ? 'Waiting for the AIS stream…<br><span style="font-size:10px">Akış ısınıyor, birazdan tekrar denenecek.</span>' : 'No vessels in this area right now.')}</div>`;
+    return;
+  }
+  el.innerHTML = list.map(v => {
+    const c = CATS[catOf(v)];
+    return `<div class="v-row${v.stale ? ' stale' : ''}${selected === v.mmsi ? ' selected' : ''}" data-mmsi="${escapeHtml(v.mmsi)}">
+      <div class="v-ico">${shipSvg(Object.assign({}, v, {stale: false, risk: 0}), 18)}</div>
+      <div class="v-main">
+        <div class="v-name">${escapeHtml(flagEmoji(v.flag_country))} ${escapeHtml(vName(v))}</div>
+        <div class="v-sub"><span style="color:${c.color}">${escapeHtml(c.label)}</span> · ${escapeHtml(v.mmsi)} · ${escapeHtml(fmtAge(v.age_s))}${v.destination ? ' → ' + escapeHtml(v.destination) : ''}</div>
+      </div>
+      <div class="v-right">
+        <div class="v-spd">${num(v.sog) !== null ? escapeHtml(v.sog.toFixed(1)) : '—'}<span style="font-size:9px;color:var(--tm)"> kn</span></div>
+        ${(v.risk || 0) > 0 ? `<span class="v-risk ${riskCls(v.risk)}">RISK ${escapeHtml(v.risk)}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderChips() {
+  const counts = {};
+  vessels.forEach(v => { const k = catOf(v); counts[k] = (counts[k] || 0) + 1; });
+  const keys = Object.keys(CATS).filter(k => counts[k]);
+  $('cat-chips').innerHTML = `<button class="mt-chip${catFilter ? '' : ' active'}" data-cat="">All<span class="cnt">${vessels.length}</span></button>` +
+    keys.map(k => `<button class="mt-chip${catFilter === k ? ' active' : ''}" data-cat="${escapeHtml(k)}"><span class="dotc" style="background:${CATS[k].color}"></span>${escapeHtml(CATS[k].label)}<span class="cnt">${counts[k]}</span></button>`).join('');
+}
+
+function renderStats() {
+  const s = (lastResp && lastResp.summary) || {};
+  $('st-total').textContent = lastResp ? lastResp.total : '—';
+  $('st-moving').textContent = s.moving ?? '—';
+  $('st-anch').textContent = s.anchored ?? '—';
+  $('st-flag').textContent = s.suspicious ?? '—';
+  const bt = s.by_type || {};
+  const ks = Object.keys(bt).sort((a, b) => bt[b] - bt[a]);
+  $('st-cats').innerHTML = ks.length ? ks.slice(0, 6).map(k =>
+    `<span><b style="color:${(CATS[k] || CATS.other).color}">${escapeHtml(bt[k])}</b> ${escapeHtml((CATS[k] || CATS.other).label)}</span>`).join('') : '<span style="color:var(--tm)">—</span>';
+}
+
+function renderNotices() {
+  const d = lastResp; const out = [];
+  if (!d) { $('notices').innerHTML = ''; return; }
+  const a = (d.sources || {}).aisstream || {};
+  const dt = (d.sources || {}).digitraffic || {};
+  if (a.available === false) {
+    out.push(['n-err', 'AIS STREAM UNAVAILABLE', 'The <code>websocket-client</code> Python package is missing. Install it: <code>pip install websocket-client</code>, then restart SignalOps.', 'Python paketi eksik.']);
+  } else if (!a.configured) {
+    out.push([dt.active ? 'n-info' : 'n-warn', 'NO AISSTREAM KEY',
+      'Add an aisstream.io key in <a href="/settings">Settings → Maritime</a> (free at aisstream.io).' + (dt.active ? ' Showing Digitraffic (Finland / Baltic) data only.' : ' No keyless source covers this area.'),
+      'Ücretsiz anahtarı Ayarlar sayfasından ekleyin.']);
+  } else if (a.error) {
+    out.push(['n-err', 'AISSTREAM ERROR', escapeHtml(a.error) + ' — check the key in <a href="/settings">Settings → Maritime</a>.', 'Anahtar geçersiz olabilir.']);
+  }
+  if (d.warming_up) {
+    out.push(['n-warn', 'WARMING UP', `AIS stream just subscribed to this area — vessels appear as they report (moving ships every few seconds, anchored ships every ~3 min, names every ~6 min). Polling again automatically.`, 'Akış yeni başladı, liste dolacak.']);
+  }
+  if (dt.active && dt.ok === false && dt.error) {
+    out.push(['n-info', 'DIGITRAFFIC', 'Digitraffic request failed (' + escapeHtml(dt.error) + '); showing cached data if any.', '']);
+  }
+  $('notices').innerHTML = out.map(([cls, t, body, tr]) =>
+    `<div class="mt-notice ${cls}"><div><b>${t}</b> — ${body}${tr ? `<span class="n-tr">${escapeHtml(tr)}</span>` : ''}</div></div>`).join('');
+}
+
+function row(k, v, cls) {
+  if (v === null || v === undefined || v === '') v = '—';
+  return `<div class="dk">${escapeHtml(k)}</div><div class="dv${cls ? ' ' + cls : ''}">${escapeHtml(v)}</div>`;
+}
+
+function renderDetail() {
+  const p = $('detail-panel');
+  const v = vessels.find(x => x.mmsi === selected);
+  if (!v) { p.style.display = 'none'; return; }
+  p.style.display = 'block';
+  const c = CATS[catOf(v)];
+  $('dp-title').innerHTML = `${escapeHtml(flagEmoji(v.flag_country))} ${escapeHtml(vName(v))}`;
+  $('dp-sub').innerHTML = `<span class="cat-badge" style="color:${c.color};border-color:${c.color}55;background:${c.color}14">${escapeHtml(c.label)}</span>
+    <span class="v-risk ${riskCls(v.risk || 0)}" style="margin-left:6px">RISK ${escapeHtml(v.risk || 0)}</span>
+    <span style="margin-left:6px">${escapeHtml(v.ship_type_name || '')}</span>`;
+  const dims = (num(v.length) || num(v.width)) ? `${v.length ?? '?'} × ${v.width ?? '?'} m` : null;
+  $('dp-id').innerHTML =
+    row('MMSI', v.mmsi) + row('Name', v.name) + row('Callsign', v.callsign) + row('IMO', v.imo) +
+    row('Flag', v.flag_country_name ? `${v.flag_country_name} (${v.flag_country})` : null) +
+    row('Ship type', v.ship_type !== null && v.ship_type !== undefined ? `${v.ship_type} — ${v.ship_type_name}` : null) +
+    row('Size', dims) + row('Draught', num(v.draught) !== null ? v.draught + ' m' : null) +
+    row('MMSI kind', v.mmsi_kind) +
+    ((v.names_seen || []).length > 1 ? row('Names seen', v.names_seen.join(' / '), 'dv-warn') : '');
+  const ns = v.nav_status || {};
+  $('dp-kin').innerHTML =
+    row('Position', `${(+v.lat).toFixed(5)}, ${(+v.lon).toFixed(5)}`) +
+    row('Speed', num(v.sog) !== null ? v.sog + ' kn' : null) +
+    row('Course', num(v.cog) !== null ? v.cog + '°' : null) +
+    row('Heading', num(v.heading) !== null ? v.heading + '°' : null) +
+    row('Nav status', ns.text ? `${ns.text} (${ns.code})` : null) +
+    row('Destination', v.destination) + row('ETA', v.eta) +
+    row('Last update', v.last_update ? new Date(v.last_update * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC' : null) +
+    row('Age', fmtAge(v.age_s), v.stale ? 'dv-warn' : '') +
+    row('Source', (v.sources || []).join(', ') || v.source);
+  const codes = v.flag_codes || [];
+  $('dp-flags').innerHTML = codes.length ? codes.map((code, i) =>
+    `<div class="flag-item${INFO_FLAGS.has(code) ? ' info' : ''}"><div class="ft">${escapeHtml((v.flags || [])[i] || code)}</div><div class="fx">${escapeHtml(FLAG_HELP[code] || '')}</div></div>`).join('') +
+    '<div style="font-size:9.5px;color:var(--tm);margin-top:6px">Heuristics, not proof · Sezgisel işaretler, kesin kanıt değildir.</div>'
+    : '<div style="font-size:11px;color:var(--td)">No anomalies detected.</div>';
+  const m = encodeURIComponent(v.mmsi);
+  $('dp-links').innerHTML =
+    `<button class="btn btn-g" id="dp-center">◎ Center map</button>
+     <a class="btn btn-outline" target="_blank" rel="noopener noreferrer" href="${safeUrl('https://www.marinetraffic.com/en/ais/details/ships/mmsi:' + m)}">MarineTraffic ↗</a>
+     <a class="btn btn-outline" target="_blank" rel="noopener noreferrer" href="${safeUrl('https://www.vesselfinder.com/vessels/details/' + m)}">VesselFinder ↗</a>`;
+}
+
+function selectVessel(mmsi, pan) {
+  selected = mmsi;
+  const v = vessels.find(x => x.mmsi === mmsi);
+  renderMap(); renderList(); renderDetail();
+  if (v && pan) map.panTo([v.lat, v.lon]);
+}
+
+function renderAll() {
+  renderNotices(); renderStats(); renderChips(); renderMap(); renderList(); renderDetail();
+}
+
+function zoomFor(r) { return r <= 10 ? 12 : r <= 25 ? 11 : r <= 50 ? 10 : r <= 100 ? 9 : 8; }
+
+function setStatus(html) { $('refresh-status').innerHTML = html; }
+
+async function doScan(opts) {
+  opts = opts || {};
+  const lat = parseFloat($('m-lat').value), lon = parseFloat($('m-lon').value);
+  if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+    setStatus('<span style="color:#F87171">Invalid coordinates</span>'); return;
+  }
+  radius = parseInt($('radius-sel').value, 10) || 50;
+  const moved = Math.abs(lat - center.lat) > 1e-6 || Math.abs(lon - center.lon) > 1e-6 || !lastResp || opts.recenter;
+  center = {lat, lon};
+  if (!opts.silent) { clearTimeout(warmTimer); warmTries = 0; }
+  const seq = ++reqSeq;
+  busy = true;
+  $('scan-btn').disabled = true;
+  setStatus('<span class="refresh-ring"></span> scanning…');
+  renderArea();
+  if (moved && !opts.silent) map.setView([lat, lon], zoomFor(radius));
+  try {
+    const r = await fetch(`/api/ais?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&radius_km=${encodeURIComponent(radius)}`);
+    const d = await r.json().catch(() => ({}));
+    if (seq !== reqSeq) return;
+    if (!r.ok) { setStatus(`<span style="color:#F87171">${escapeHtml(d.error || ('HTTP ' + r.status))}</span>`); return; }
+    lastResp = d;
+    vessels = Array.isArray(d.vessels) ? d.vessels : [];
+    if (selected && !vessels.some(v => v.mmsi === selected)) selected = null;
+    renderAll();
+    setStatus(`updated ${new Date().toLocaleTimeString()}`);
+    if (d.warming_up && !$('auto-refresh').checked && warmTries < 8) {
+      clearTimeout(warmTimer);
+      warmTries++;
+      warmTimer = setTimeout(() => doScan({silent: true}), 8000);
+    }
+  } catch (e) {
+    if (seq === reqSeq) setStatus('<span style="color:#F87171">Request failed</span>');
+  } finally {
+    if (seq === reqSeq) { busy = false; $('scan-btn').disabled = false; }
+  }
+}
+
+// ── Events ──
+$('scan-btn').addEventListener('click', () => doScan());
+$('m-lat').addEventListener('keydown', e => { if (e.key === 'Enter') doScan(); });
+$('m-lon').addEventListener('keydown', e => { if (e.key === 'Enter') doScan(); });
+$('radius-sel').addEventListener('change', () => { if (lastResp) doScan({recenter: true}); });
+$('presets').addEventListener('click', e => {
+  const b = e.target.closest('button[data-lat]'); if (!b) return;
+  $('m-lat').value = b.dataset.lat; $('m-lon').value = b.dataset.lon;
+  if (b.dataset.r) $('radius-sel').value = b.dataset.r;
+  document.querySelectorAll('#presets .mt-chip').forEach(x => x.classList.toggle('active', x === b));
+  doScan({recenter: true});
+});
+$('btn-myloc').addEventListener('click', () => {
+  const btn = $('btn-myloc');
+  if (!navigator.geolocation) { setStatus('Geolocation not supported'); return; }
+  btn.disabled = true; btn.textContent = '…';
+  navigator.geolocation.getCurrentPosition(p => {
+    $('m-lat').value = p.coords.latitude.toFixed(5); $('m-lon').value = p.coords.longitude.toFixed(5);
+    btn.disabled = false; btn.innerHTML = window.SO_PIN; doScan({recenter: true});
+  }, () => { btn.disabled = false; btn.innerHTML = window.SO_PIN; setStatus('<span style="color:#F87171">Location unavailable</span>'); },
+  {timeout: 10000, maximumAge: 60000});
+});
+$('auto-refresh').addEventListener('change', e => {
+  clearInterval(autoTimer); autoTimer = null;
+  clearTimeout(warmTimer);
+  if (e.target.checked) {
+    autoTimer = setInterval(() => { if (!busy && !document.hidden) doScan({silent: true}); }, 30000);
+    if (!busy) doScan({silent: true});
+  }
+});
+$('v-search').addEventListener('input', () => renderList());
+$('v-sort').addEventListener('change', () => renderList());
+$('cat-chips').addEventListener('click', e => {
+  const b = e.target.closest('button[data-cat]'); if (!b) return;
+  catFilter = b.dataset.cat || null;
+  renderChips(); renderMap(); renderList();
+});
+$('vessel-list').addEventListener('click', e => {
+  const r = e.target.closest('.v-row[data-mmsi]'); if (!r) return;
+  selectVessel(r.dataset.mmsi, true);
+});
+$('detail-panel').addEventListener('click', e => {
+  if (e.target.closest('#dp-close')) { selected = null; renderMap(); renderList(); renderDetail(); }
+  else if (e.target.closest('#dp-center')) {
+    const v = vessels.find(x => x.mmsi === selected); if (v) map.setView([v.lat, v.lon], Math.max(map.getZoom(), 13));
+  }
+});
+
+// ── Case toolbar (so-cases.js — varsa) ──
+let caseAttached = false;
+function tryAttachCase() {
+  if (caseAttached || !window.SignalOpsCase || typeof window.SignalOpsCase.attach !== 'function') return;
+  caseAttached = true;
+  try {
+    window.SignalOpsCase.attach($('case-tools'), {
+      kind: 'ais', title: 'Maritime',
+      getDevices: () => vessels.map(v => Object.assign({}, v, {type: 'vessel', mmsi: v.mmsi})),
+      getCenter: () => ({lat: center.lat, lon: center.lon}),
+    });
+  } catch (e) { console.warn('SignalOpsCase.attach failed', e); }
+}
+document.addEventListener('DOMContentLoaded', tryAttachCase);
+window.addEventListener('load', tryAttachCase);
+
+// ── URL parametreleri (?lat=&lon=&radius_km=) ──
+try {
+  const q = new URLSearchParams(location.search);
+  const ql = parseFloat(q.get('lat')), qn = parseFloat(q.get('lon')), qr = parseInt(q.get('radius_km') || q.get('radius'), 10);
+  if (isFinite(ql) && isFinite(qn)) {
+    $('m-lat').value = ql; $('m-lon').value = qn;
+    if ([10, 25, 50, 100, 150, 200].includes(qr)) $('radius-sel').value = String(qr);
+    doScan({recenter: true});
+  }
+} catch (e) {}
+renderArea();
+window.addEventListener('resize', () => map.invalidateSize());
+})();
+</script>
+{% endblock %}

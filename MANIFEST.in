@@ -1,0 +1,7 @@
+include LICENSE README.md
+recursive-include signalops/templates *.html
+recursive-include signalops/static *
+recursive-include signalops/modules/fonts *.ttf
+prune data
+prune docs
+global-exclude __pycache__ *.py[cod]

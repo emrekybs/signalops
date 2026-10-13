@@ -1,0 +1,18 @@
+# Kullanım:  docker compose up -d      → http://localhost:8080
+# Sadece bu bilgisayardan erişilir (127.0.0.1). data/ klasörü proje içinde olmalı.
+services:
+  signalops:
+    build: .
+    image: signalops:local
+    container_name: signalops
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/app/data:ro
+      - signalops-state:/app/state
+volumes:
+  signalops-state:

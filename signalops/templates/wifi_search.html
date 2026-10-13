@@ -1,0 +1,3349 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SIGINT Map — SignalOps</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script>window.SO_CARTO_KEY = {{ carto_key|tojson }};</script>
+    <script src="/static/js/so-tiles.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <script>
+        /* FIX BUG-05: /log-activity çağrıları kaldırıldı — endpoint stub app_v2.py'de mevcut */
+    </script>
+
+
+    <script src="/static/js/so-safe.js"></script>
+    <script src="/static/js/so-nav.js" defer></script>
+    <script src="/static/js/so-cases.js" defer></script>
+    <link rel="stylesheet" href="/static/css/so-nav.css">
+<style>
+
+        :root {
+            --primary-color: #B4A8D6;
+            /* Cyber Cyan */
+            --secondary-color: #5E9A7E;
+            /* Electric Blue */
+            --accent-color: #8A7AB8;
+            /* Soft Cyan */
+            --bg-dark: #0B0B0F;
+            /* Deep Void */
+            --glass-bg: rgba(20, 20, 25, 0.90);
+            --card-bg: rgba(138, 122, 184, 0.05);
+            --border-color: rgba(138, 122, 184, 0.25);
+            --text-main: #E2E2EC;
+            --text-dim: rgba(210, 210, 230, 0.55);
+            --neon-glow: 0 0 15px rgba(138, 122, 184, 0.5);
+            --danger: #C26767;
+            --success: #74B095;
+            --font-main: 'JetBrains Mono', 'Courier New', monospace;
+            --font-display: 'Rajdhani', 'Exo 2', sans-serif;
+            --font-body: 'Exo 2', system-ui, sans-serif;
+        }
+
+        body.sat-mode {
+            --primary-color: #A58BB8;
+            --secondary-color: #8F6FA6;
+            --accent-color: #C26767;
+            --text-main: #FFB3FF;
+            --text-dim: rgba(255, 179, 255, 0.6);
+            --border-color: rgba(165, 139, 184, 0.3);
+            --glass-bg: rgba(30, 15, 50, 0.85);
+            --neon-glow: 0 0 15px rgba(165, 139, 184, 0.4);
+        }
+
+        /* ---------- Base / Theme ---------- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            height: 100%;
+            font-family: var(--font-main);
+            background: radial-gradient(ellipse at 20% 20%, rgba(36, 36, 40, 0.14) 0%, var(--bg-dark) 60%);
+            color: var(--text-main);
+            overflow-x: hidden;
+        }
+
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 49px, rgba(116, 176, 149, 0.04) 49px, rgba(116, 176, 149, 0.04) 50px),
+                repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(116, 176, 149, 0.04) 49px, rgba(116, 176, 149, 0.04) 50px);
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% {
+                transform: translate(0, 0);
+            }
+
+            100% {
+                transform: translate(50px, 50px);
+            }
+        }
+
+        /* ---------- Top Navigation ---------- */
+        .topnav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: rgba(11, 11, 15, 0.96);
+            backdrop-filter: blur(24px);
+            border-bottom: 1px solid rgba(138, 122, 184, 0.3);
+            box-shadow: 0 1px 30px rgba(94, 154, 126, 0.18);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 1100;
+            gap: 20px;
+        }
+
+        .left-group {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-shrink: 0;
+        }
+
+        /* ── Horizontal Nav Menu ── */
+        .topnav-menu {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            flex: 1;
+            justify-content: center;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .topnav-menu::-webkit-scrollbar { display: none; }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 13px;
+            color: #5A5A6E;
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            transition: all 0.22s;
+            white-space: nowrap;
+            position: relative;
+        }
+        .nav-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .nav-item:hover,
+        .nav-item.active {
+            color: var(--primary-color);
+            border-color: rgba(138, 122, 184, 0.18);
+            background: rgba(138, 122, 184, 0.06);
+            text-shadow: 0 0 8px rgba(116, 176, 149, 0.5);
+        }
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 10%; width: 80%; height: 2px;
+            background: var(--primary-color);
+            box-shadow: 0 0 8px var(--primary-color);
+            border-radius: 2px;
+        }
+        .nav-divider {
+            width: 1px; height: 22px;
+            background: rgba(138, 122, 184, 0.1);
+            margin: 0 4px; flex-shrink: 0;
+        }
+
+        .logo-section {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        /* ── SIGINT Logo Image ── */
+        .sigint-logo-img {
+            width: 46px;
+            height: 46px;
+            object-fit: contain;
+            border-radius: 50%;
+            filter:
+                drop-shadow(0 0 6px rgba(160, 60, 255, 0.9))
+                drop-shadow(0 0 14px rgba(160, 60, 255, 0.6))
+                drop-shadow(0 0 28px rgba(94, 154, 126, 0.4));
+            animation: logoGlow 3s ease-in-out infinite alternate;
+            transition: filter 0.3s;
+        }
+        .sigint-logo-img:hover {
+            filter:
+                drop-shadow(0 0 10px rgba(200, 80, 255, 1))
+                drop-shadow(0 0 24px rgba(160, 60, 255, 0.9))
+                drop-shadow(0 0 48px rgba(120, 0, 255, 0.6));
+        }
+        @keyframes logoGlow {
+            0%  { filter: drop-shadow(0 0 5px rgba(160,60,255,0.8))  drop-shadow(0 0 12px rgba(120,0,255,0.4)); }
+            100%{ filter: drop-shadow(0 0 12px rgba(200,80,255,1.0)) drop-shadow(0 0 28px rgba(160,60,255,0.7)) drop-shadow(0 0 50px rgba(100,0,220,0.4)); }
+        }
+
+        .logo-text h2 {
+            font-size: 18px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: var(--neon-glow);
+        }
+
+        .logo-text p {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .nav-stats {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 6px 12px;
+            background: rgba(138, 122, 184, 0.06);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #74B095;
+            box-shadow: 0 0 10px #74B095;
+        }
+
+        /* Cyber Checkboxes */
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 15px 0;
+            justify-content: center;
+            background: rgba(0, 255, 209, 0.02);
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .cyber-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 11px;
+            color: var(--text-dim);
+            transition: 0.3s;
+            user-select: none;
+        }
+
+        .cyber-check input {
+            display: none;
+        }
+
+        .cyber-check .box {
+            width: 14px;
+            height: 14px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            background: rgba(8, 8, 12, 0.5);
+        }
+
+        .cyber-check input:checked+.box {
+            background: var(--primary-color);
+            box-shadow: var(--neon-glow);
+        }
+
+        .cyber-check input:checked+.box::after {
+            content: "\f00c";
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #000;
+            font-size: 8px;
+        }
+
+        .cyber-check:hover {
+            color: var(--primary-color);
+        }
+
+        .cyber-check.active {
+            color: var(--primary-color);
+            text-shadow: var(--neon-glow);
+        }
+
+        .mode-label {
+            font-size: 12px;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            transition: 0.3s;
+        }
+
+        .mode-label.active {
+            color: var(--primary-color);
+            text-shadow: var(--neon-glow);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            transition: .4s;
+            border: 1px solid var(--border-color);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 26px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--text-dim);
+            transition: .4s;
+        }
+
+        input:checked+.slider {
+            background-color: rgba(138, 122, 184, 0.1);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+            background-color: var(--primary-color);
+            box-shadow: var(--neon-glow);
+        }
+
+        /* ---------- Sidebar ---------- */
+        /* ── Sidebar → hidden (moved to topnav) ── */
+        .sidebar { display: none !important; }
+        .sidebar-backdrop { display: none !important; }
+        .hamburger { display: none !important; }
+
+        /* ---------- Main Content ---------- */
+        .container {
+            margin-top: 64px;
+            margin-left: 0;
+            padding: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .menu-title {
+            padding: 15px 20px 8px;
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(138, 122, 184, 0.06);
+            margin-bottom: 10px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px 20px;
+            color: var(--text-dim);
+            transition: 0.3s;
+            cursor: pointer;
+            border-left: 2px solid transparent;
+            text-transform: uppercase;
+            font-size: 13px;
+        }
+
+        .menu-item:hover,
+        .menu-item.active {
+            color: var(--primary-color);
+            background: rgba(138, 122, 184, 0.06);
+            border-left-color: var(--primary-color);
+            text-shadow: var(--neon-glow);
+        }
+
+        .menu-icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* container — full width, no sidebar */
+        .container {
+            margin-top: 64px !important;
+            margin-left: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+            width: 100% !important;
+        }
+        .main-content {
+            padding: 12px;
+            width: 100%;
+        }
+
+        .page-header h1 {
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+            text-shadow: var(--neon-glow);
+        }
+
+        .page-header p {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 15px;
+            background: var(--glass-bg);
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-bottom: 25px;
+            backdrop-filter: blur(10px);
+            justify-content: center;
+        }
+
+        .search-bar select,
+        .search-bar input {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 12px 15px;
+            font-family: var(--font-main);
+            font-size: 14px;
+        }
+
+        .search-bar select:focus,
+        .search-bar input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(138, 122, 184, 0.2);
+        }
+
+        .search-bar button {
+            background: rgba(138, 122, 184, 0.1);
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 12px 30px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 2px;
+            transition: 0.3s;
+            clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+            font-family: var(--font-main);
+        }
+
+        #search-type,
+        #search-input {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--border-color);
+            color: var(--primary-color);
+            padding: 12px 15px;
+            font-family: var(--font-main);
+            font-size: 14px;
+            outline: none;
+            transition: 0.3s;
+            box-shadow: inset 0 0 10px rgba(138, 122, 184, 0.06);
+        }
+
+        #search-type:focus,
+        #search-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 15px rgba(138, 122, 184, 0.3), inset 0 0 10px rgba(138, 122, 184, 0.1);
+        }
+
+        #search-type option {
+            background: #0B0B0F;
+            color: var(--primary-color);
+        }
+
+        .search-bar button:hover {
+            background: var(--primary-color);
+            color: #000;
+            box-shadow: var(--neon-glow);
+            transform: translateY(-2px);
+        }
+
+        /* Surveillance Grid Layout */
+        .surveillance-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+            height: 65vh;
+        }
+
+        .results-sidebar {
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .map-container {
+            border: 2px solid var(--border-color);
+            position: relative;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        .map-container::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(138, 122, 184, 0.06) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+
+        #map {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        /* StreetView mode — vibrant Google roadmap, no filter (pure color) */
+        #map.street-map .leaflet-tile-pane {
+            filter: none;
+        }
+
+        /* Purple-grey map tile tint (CyberMap mode) */
+        #map.cyber-map .leaflet-tile-pane {
+            filter: grayscale(0.55) hue-rotate(80deg) saturate(0.6) brightness(0.45);
+        }
+
+        /* SIGINT OPS mode — dark military overlay on satellite imagery */
+        #map.sigint-map .leaflet-tile-pane {
+            filter: grayscale(0.35) saturate(0.7) brightness(0.55) contrast(1.15) hue-rotate(85deg);
+        }
+        #map.sigint-map::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 400;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(0, 255, 100, 0.03) 0%,
+                    rgba(0, 0, 0, 0) 50%,
+                    rgba(0, 255, 100, 0.03) 100%
+                ),
+                radial-gradient(
+                    ellipse at center,
+                    transparent 40%,
+                    rgba(10, 10, 14, 0.45) 100%
+                );
+            mix-blend-mode: overlay;
+        }
+        #map.sigint-map::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 401;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 255, 100, 0) 0px,
+                rgba(0, 255, 100, 0) 2px,
+                rgba(0, 255, 100, 0.04) 3px,
+                rgba(0, 255, 100, 0) 4px
+            );
+            animation: sigint-scan 8s linear infinite;
+        }
+        @keyframes sigint-scan {
+            0%   { background-position: 0 0; }
+            100% { background-position: 0 100px; }
+        }
+
+        /* ═══════════════════════════════════════════════
+           YENİ MOD: DRONE FPV — cockpit HUD overlay
+           FPV kamera görünümü + crosshair + telemetry + scan
+           ═══════════════════════════════════════════════ */
+        #map.drone-map .leaflet-tile-pane {
+            filter: saturate(1.25) contrast(1.1) brightness(0.92) hue-rotate(-8deg);
+        }
+        /* Radial vignette + target crosshair */
+        #map.drone-map::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 500;
+            background:
+                /* Center crosshair (target reticle) */
+                linear-gradient(transparent 49.85%, #00FF88 49.85%, #00FF88 50.15%, transparent 50.15%),
+                linear-gradient(90deg, transparent 49.85%, #00FF88 49.85%, #00FF88 50.15%, transparent 50.15%),
+                /* Corner brackets */
+                linear-gradient(#00FF88, #00FF88) 20px 20px / 30px 2px no-repeat,
+                linear-gradient(#00FF88, #00FF88) 20px 20px / 2px 30px no-repeat,
+                linear-gradient(#00FF88, #00FF88) top 20px right 20px / 30px 2px no-repeat,
+                linear-gradient(#00FF88, #00FF88) top 20px right 20px / 2px 30px no-repeat,
+                linear-gradient(#00FF88, #00FF88) bottom 20px left 20px / 30px 2px no-repeat,
+                linear-gradient(#00FF88, #00FF88) bottom 20px left 20px / 2px 30px no-repeat,
+                linear-gradient(#00FF88, #00FF88) bottom 20px right 20px / 30px 2px no-repeat,
+                linear-gradient(#00FF88, #00FF88) bottom 20px right 20px / 2px 30px no-repeat,
+                /* Radial vignette */
+                radial-gradient(ellipse at center, transparent 30%, rgba(0,20,10,0.4) 100%);
+            background-size: 2px 100%, 100% 2px, auto, auto, auto, auto, auto, auto, auto, auto, 100% 100%;
+            background-repeat: no-repeat;
+            background-position: center, center, 20px 20px, 20px 20px, top 20px right 20px, top 20px right 20px, bottom 20px left 20px, bottom 20px left 20px, bottom 20px right 20px, bottom 20px right 20px, center;
+            mix-blend-mode: screen;
+            opacity: 0.85;
+        }
+        /* Scanline + REC indicator */
+        #map.drone-map::after {
+            content: 'REC  •  FPV  •  GPS LOCK  •  ALT 120M  •  BATT 87%';
+            position: absolute;
+            top: 12px; left: 50%;
+            transform: translateX(-50%);
+            pointer-events: none;
+            z-index: 501;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: #00FF88;
+            text-shadow: 0 0 8px #00FF88;
+            background: rgba(0,20,10,0.7);
+            padding: 4px 12px;
+            border: 1px solid rgba(0,255,136,0.4);
+            border-radius: 4px;
+            animation: drone-rec 1.5s ease-in-out infinite;
+        }
+        @keyframes drone-rec {
+            0%, 100% { opacity: 0.95; }
+            50%      { opacity: 0.6; }
+        }
+
+        /* ═══════════════════════════════════════════════
+           YENİ MOD: LIGHT — aydınlık, pastel, temiz
+           ═══════════════════════════════════════════════ */
+        #map.light-map .leaflet-tile-pane {
+            filter: brightness(1.1) saturate(0.85) contrast(0.95);
+        }
+        body.light-map-mode {
+            background: #F8FAFC !important;
+        }
+
+        /* ═══════════════════════════════════════════════
+           YENİ MOD: MATRIX — pure cyber yeşil, koyu
+           ═══════════════════════════════════════════════ */
+        #map.matrix-map .leaflet-tile-pane {
+            filter: grayscale(1) brightness(0.35) contrast(1.8) hue-rotate(90deg) sepia(0.4) saturate(8);
+        }
+        #map.matrix-map::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 400;
+            background:
+                repeating-linear-gradient(0deg,
+                    rgba(0,255,70,0.04) 0,
+                    rgba(0,255,70,0.04) 1px,
+                    transparent 1px,
+                    transparent 3px),
+                radial-gradient(ellipse at center, transparent 30%, rgba(13, 13, 17,0.7) 100%);
+            mix-blend-mode: screen;
+        }
+        #map.matrix-map::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 401;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 255, 70, 0) 0px,
+                rgba(0, 255, 70, 0) 3px,
+                rgba(0, 255, 70, 0.06) 4px,
+                rgba(0, 255, 70, 0) 5px
+            );
+            animation: sigint-scan 6s linear infinite;
+        }
+
+        /* ═══════════════════════════════════════════════
+           YENİ MOD: TERRAIN — topografi, gerçek renkli yükseklikler
+           ═══════════════════════════════════════════════ */
+        #map.terrain-map .leaflet-tile-pane {
+            filter: saturate(1.15) contrast(1.05);
+        }
+        body.terrain-map-mode {
+            background: #1a2030 !important;
+        }
+
+        /* ═══════════════════════════════════════════════
+           YENİ MOD: OSM ROADMAP — sokak gorunumu (Türkçe sokak isimleri)
+           ═══════════════════════════════════════════════ */
+        #map.osm-map .leaflet-tile-pane {
+            filter: none;
+        }
+
+        /* Node Item in Sidebar */
+        .node-item {
+            background: rgba(116, 176, 149, 0.04);
+            border: 1px solid rgba(138, 122, 184, 0.1);
+            padding: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .node-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2px;
+            height: 100%;
+            background: var(--primary-color);
+            opacity: 0;
+            transition: 0.3s;
+        }
+
+        .node-item:hover {
+            background: rgba(0, 255, 209, 0.08);
+            border-color: var(--primary-color);
+            transform: translateX(5px);
+        }
+
+        .node-item:hover::before {
+            opacity: 1;
+        }
+
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .node-name {
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .node-type {
+            font-size: 9px;
+            background: rgba(138, 122, 184, 0.14);
+            padding: 2px 6px;
+            border-radius: 2px;
+            color: var(--primary-color);
+            text-transform: uppercase;
+        }
+
+        .node-meta {
+            font-size: 9px;
+            color: var(--text-dim);
+        }
+
+        .signal-meter {
+            height: 3px;
+            background: rgba(138, 122, 184, 0.1);
+            margin-top: 8px;
+            width: 100%;
+            border-radius: 2px;
+        }
+
+        .signal-strength {
+            height: 100%;
+            background: var(--primary-color);
+            box-shadow: 0 0 5px var(--primary-color);
+        }
+
+        @media (max-width: 1100px) {
+            .surveillance-grid {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .results-sidebar {
+                height: 300px;
+                order: 2;
+            }
+
+            .map-container {
+                height: 50vh;
+                order: 1;
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--danger);
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 4px;
+            display: none;
+            text-transform: uppercase;
+            font-weight: bold;
+            font-size: 12px;
+            z-index: 2000;
+            box-shadow: 0 0 20px rgba(194, 103, 103, 0.4);
+        }
+
+        /* ---------- Custom Leaflet Popup ---------- */
+        .leaflet-popup-content-wrapper {
+            background: var(--glass-bg);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 0;
+        }
+
+        .leaflet-popup-tip {
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+        }
+
+        .leaflet-container a.leaflet-popup-close-button {
+            color: var(--primary-color);
+        }
+
+        /* ---------- Responsive ---------- */
+        @media (max-width: 968px) {
+            .container {
+                margin-left: 0;
+                padding: 20px;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .hamburger {
+                display: flex !important;
+            }
+
+            .nav-stats {
+                display: none;
+            }
+
+            .search-bar {
+                flex-direction: column;
+            }
+        }
+
+        .hamburger {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--border-color);
+            background: rgba(138, 122, 184, 0.06);
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .hamburger span {
+            width: 24px;
+            height: 2px;
+            background: var(--primary-color);
+            position: relative;
+            transition: 0.3s;
+        }
+
+        .hamburger span::before,
+        .hamburger span::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: var(--primary-color);
+            left: 0;
+            transition: 0.3s;
+        }
+
+        .hamburger span::before {
+            top: -8px;
+        }
+
+        .hamburger span::after {
+            top: 8px;
+        }
+
+        .hamburger.open span {
+            background: transparent;
+        }
+
+        .hamburger.open span::before {
+            transform: rotate(45deg);
+            top: 0;
+        }
+
+        .hamburger.open span::after {
+            transform: rotate(-45deg);
+            top: 0;
+        }
+
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 950;
+        }
+
+        .sidebar-backdrop.show {
+            display: block;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: radial-gradient(ellipse at 20% 20%, rgba(36, 36, 40, 0.14) 0%, var(--bg-dark) 60%);
+        }
+
+        /* Additional styles for existing elements not explicitly covered by the new CSS, adapted to the theme */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+            padding: 20px 0;
+        }
+
+        .card {
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 16px;
+            color: var(--text-main);
+            backdrop-filter: blur(10px);
+        }
+
+        .card h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-shadow: var(--neon-glow);
+        }
+
+        .card h2 i {
+            color: var(--primary-color);
+        }
+
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 12px;
+        }
+
+        .app-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background: rgba(138, 122, 184, 0.06);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .app-item:hover {
+            background: rgba(138, 122, 184, 0.1);
+            transform: translateY(-2px);
+            box-shadow: var(--neon-glow);
+        }
+
+        .app-item i {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: var(--primary-color);
+            /* Changed from yellow */
+        }
+
+        .app-item span {
+            font-size: 12px;
+            color: var(--text-main);
+        }
+
+        .bot-status p {
+            font-size: 13px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bot-status p i {
+            color: var(--primary-color);
+        }
+
+        #coords {
+            font-size: 13px;
+            color: var(--primary-color);
+            /* Changed from yellow */
+            margin-bottom: 12px;
+        }
+
+        #history div {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        #results {
+            margin-top: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(30, 30, 34, 0.8);
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--primary-color);
+            /* Changed from yellow */
+        }
+
+        .device {
+            background: rgba(138, 122, 184, 0.1);
+            border: 1px solid var(--primary-color);
+            padding: 8px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .refresh-btn {
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--primary-color);
+            /* Changed from yellow */
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .refresh-btn i {
+            color: var(--primary-color);
+            /* Changed from yellow */
+        }
+
+        /* Spotify Mini Player */
+        #spotify {
+            background: transparent;
+            color: var(--text-main);
+        }
+
+        .track-info {
+            background: transparent;
+            border-radius: 4px;
+            padding: 12px;
+            max-width: 280px;
+        }
+
+        .track-info>img {
+            width: 50px;
+            height: 50px;
+            border-radius: 4px;
+            border: 1px solid var(--primary-color);
+            object-fit: cover;
+            float: left;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .track-info h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 3px;
+            margin-top: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .track-info>p {
+            font-size: 10px;
+            color: var(--text-dim);
+            opacity: 0.7;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin: 10px 0 8px 0;
+            clear: both;
+        }
+
+        .controls button {
+            background: transparent;
+            border: 1.5px solid var(--primary-color);
+            color: var(--primary-color);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            transition: all 0.3s;
+        }
+
+        .controls button:hover {
+            background: rgba(138, 122, 184, 0.1);
+            transform: scale(1.05);
+        }
+
+        #play-button,
+        #pause-button {
+            width: 34px;
+            height: 34px;
+            background: var(--primary-color);
+            color: var(--bg-dark);
+            font-size: 12px;
+            border: none;
+        }
+
+        #play-button:hover,
+        #pause-button:hover {
+            background: var(--primary-color);
+            opacity: 0.9;
+        }
+
+        .progress-container {
+            width: 100%;
+            margin: 8px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 3px;
+            background: rgba(138, 122, 184, 0.2);
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .device-selector {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(138, 122, 184, 0.3);
+        }
+
+        .device-selector h4 {
+            font-size: 11px;
+            color: var(--text-main);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .device-selector ul {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 6px;
+            max-height: 60px;
+            overflow-y: auto;
+        }
+
+        .device-selector li {
+            padding: 5px 8px;
+            color: var(--text-main);
+            font-size: 9px;
+            margin-bottom: 3px;
+            background: rgba(138, 122, 184, 0.06);
+            border-radius: 3px;
+            border: 1px solid var(--border-color);
+        }
+
+        #device-select {
+            width: 100%;
+            padding: 6px 8px;
+            background: transparent;
+            border: 1.5px solid var(--primary-color);
+            color: var(--text-main);
+            border-radius: 4px;
+            font-size: 10px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        #device-select option {
+            background: radial-gradient(ellipse at 20% 20%, rgba(36, 36, 40, 0.14) 0%, var(--bg-dark) 60%);
+            color: var(--text-main);
+        }
+
+        #change-device {
+            width: 100%;
+            padding: 6px 10px;
+            background: transparent;
+            border: 1.5px solid var(--primary-color);
+            color: var(--text-main);
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #change-device:hover {
+            background: var(--primary-color);
+            color: var(--bg-dark);
+        }
+
+        #spotify>p {
+            color: var(--text-main);
+            text-align: center;
+            font-size: 12px;
+            opacity: 0.7;
+            padding: 20px;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            }
+
+            .apps-grid {
+                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            }
+        }
+
+        @media (max-width: 968px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .apps-grid {
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            }
+        }
+
+        @media (max-width: 420px) {
+            .topnav {
+                padding: 0 10px;
+            }
+
+            .logo-text h2 {
+                font-size: 14px;
+            }
+
+            .logo-text p {
+                display: none;
+            }
+
+            .app-item span {
+                font-size: 11px;
+            }
+        }
+
+        /* Main Content specific styles */
+        .main-content { padding: 12px; width: 100%; }
+
+        /* Controls and Cards */
+        .controls {
+            background: var(--glass-bg);
+            padding: 16px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 14px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 255, 209, 0.14);
+            background: rgba(116, 176, 149, 0.04);
+            color: var(--text-main);
+        }
+
+        .search-btn {
+            padding: 12px 18px;
+            border-radius: 4px;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            color: var(--bg-dark);
+            border: none;
+            cursor: pointer;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-chip {
+            padding: 8px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            background: rgba(116, 176, 149, 0.04);
+            color: var(--text-dim);
+            cursor: pointer;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .device-card {
+            background: var(--glass-bg);
+            padding: 16px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 255, 209, 0.08);
+            transition: all 0.25s;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .device-name {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .device-code {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: monospace;
+        }
+
+        .card-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .action-btn {
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background: rgba(116, 176, 149, 0.04);
+            color: var(--text-main);
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Map Popup */
+        .map-popup {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+        }
+
+        .map-popup-content {
+            background: var(--glass-bg);
+            padding: 14px;
+            border-radius: 4px;
+            width: 600px;
+            max-width: 95%;
+        }
+
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 60px 0 0 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 950;
+        }
+
+        .sidebar-backdrop.show {
+            display: block;
+        }
+
+        .main-content {
+            padding: 12px;
+        }
+
+        .cards-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .card-actions {
+            grid-template-columns: 1fr;
+        }
+        }
+
+        @media (max-width: 420px) {
+            .topnav {
+                padding: 0 10px;
+            }
+            .logo-text h2 { font-size: 14px; }
+            .logo-text p { display: none; }
+        }
+
+        /* Responsive nav menu */
+        @media (max-width: 1100px) {
+            .nav-item span, .nav-item { font-size: 10px; padding: 6px 9px; gap: 5px; }
+        }
+        @media (max-width: 860px) {
+            .topnav-menu { display: none; }
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(138, 122, 184, 0.25);
+            border-radius: 6px;
+        }
+
+        /* ══ PURPLE + GREEN CUSTOM THEME ══ */
+
+        html, body {
+            font-family: 'JetBrains Mono', monospace;
+            background: #0B0B0F;
+            color: #E2E2EC;
+        }
+
+        /* Dot grid — green tint */
+        .bg-grid {
+            background-image:
+                radial-gradient(circle, rgba(116, 176, 149, 0.05) 1px, transparent 1px);
+            background-size: 28px 28px;
+            animation: none;
+        }
+        .bg-grid::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 55% 45% at 0% 0%, rgba(138, 122, 184, 0.1) 0%, transparent 65%),
+                radial-gradient(ellipse 40% 35% at 100% 100%, rgba(94, 154, 126, 0.07) 0%, transparent 65%);
+            pointer-events: none;
+        }
+
+        /* Topnav overhaul */
+        .topnav {
+            background: rgba(11, 11, 15, 0.97);
+            border-bottom: 1px solid rgba(138, 122, 184, 0.22);
+            box-shadow: 0 1px 0 rgba(116, 176, 149, 0.05), 0 4px 20px rgba(0,0,0,0.6);
+        }
+
+        /* Logo text styling */
+        .logo-text h2 {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 21px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: #F0EFF8;
+            text-shadow: none;
+        }
+        .logo-text h2 .green { color: #74B095; }
+        .logo-text p {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 10px;
+            color: #76738A;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+        }
+
+        /* Nav items */
+        .nav-item {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            color: #6B6B7E;
+            border-radius: 5px;
+        }
+        .nav-item:hover {
+            color: #E2E2EC;
+            background: rgba(138, 122, 184, 0.08);
+            border-color: rgba(138, 122, 184, 0.2);
+        }
+        .nav-item.active {
+            color: #B4A8D6;
+            background: rgba(138, 122, 184, 0.1);
+            border-color: rgba(138, 122, 184, 0.25);
+        }
+        .nav-item.active::after {
+            background: linear-gradient(90deg, #8A7AB8, #74B095);
+            box-shadow: none;
+        }
+
+        .nav-divider {
+            background: rgba(255,255,255,0.06);
+        }
+
+        /* Status badge */
+        .stat-item {
+            background: rgba(116, 176, 149, 0.05);
+            border: 1px solid rgba(116, 176, 149, 0.18);
+            color: #A1A1B0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            border-radius: 5px;
+        }
+        .status-dot {
+            background: #74B095;
+            box-shadow: 0 0 8px #74B095;
+        }
+
+        /* Section / page header */
+        .page-header h1 {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: 5px;
+            color: #F0EFF8;
+            text-shadow: none;
+        }
+        .page-header p {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 11px;
+            color: #76738A;
+            letter-spacing: 3px;
+        }
+
+        /* Section titles with purple left bar */
+        .section-title, .card-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #E2E2EC;
+        }
+
+        /* Cards */
+        .card, .info-card, .search-card {
+            background: #141419;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+        }
+        .card:hover, .info-card:hover {
+            border-color: rgba(138, 122, 184, 0.22);
+        }
+
+        /* Filter row */
+        .filter-row {
+            background: #141419;
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+
+        .cyber-check {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            color: #5A5A6E;
+        }
+        .cyber-check:hover { color: #E2E2EC; }
+        .cyber-check input:checked + .box {
+            background: #8A7AB8;
+            border-color: #8A7AB8;
+            box-shadow: 0 0 8px rgba(138, 122, 184,0.5);
+        }
+
+        /* Inputs */
+        input[type="text"], select, textarea {
+            background: #0C0C10;
+            border: 1px solid rgba(255,255,255,0.07);
+            color: #E2E2EC;
+            font-family: 'JetBrains Mono', monospace;
+            border-radius: 6px;
+        }
+        input:focus, select:focus {
+            border-color: rgba(138, 122, 184,0.45);
+            box-shadow: 0 0 0 3px rgba(138, 122, 184,0.08);
+        }
+        input::placeholder { color: #5F5C70; }
+
+        /* Buttons */
+        .scan-btn, button[type="button"] {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        /* Node items in results panel */
+        .node-item {
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .node-item:hover {
+            background: rgba(138, 122, 184, 0.05);
+        }
+        .node-item:hover::before, .node-item.selected::before {
+            background: linear-gradient(180deg, #8A7AB8, #74B095);
+        }
+        .node-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #DDDDE8;
+        }
+        .node-meta {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 11px;
+            color: #76738A;
+        }
+        .results-sidebar {
+            background: #0D0D11;
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+
+        /* Map container */
+        .map-container {
+            border: 1px solid rgba(138, 122, 184, 0.15);
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5),
+                        inset 0 0 0 1px rgba(116, 176, 149,0.04);
+        }
+        #map .leaflet-tile-pane {
+            filter: grayscale(0.7) brightness(0.4) hue-rotate(90deg) saturate(0.55);
+        }
+
+        /* Popup */
+        .leaflet-popup-content-wrapper {
+            background: #0F1410 !important;
+            border: 1px solid rgba(139,92,246,0.25) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+        }
+        .leaflet-popup-tip { background: #0F1410 !important; }
+
+        /* Chat modal */
+        .chat-modal {
+            background: #0D0D11;
+            border: 1px solid rgba(138, 122, 184,0.25);
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+        }
+        .chat-header {
+            background: rgba(138, 122, 184,0.08);
+            border-bottom: 1px solid rgba(138, 122, 184,0.15);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #B4A8D6;
+        }
+        .chat-messages { background: #0A0A0E; }
+        .message.user {
+            background: rgba(138, 122, 184,0.12);
+            border: 1px solid rgba(138, 122, 184,0.25);
+            color: #E2E2EC;
+        }
+        .message.bot {
+            background: #111115;
+            border: 1px solid rgba(116, 176, 149,0.1);
+            color: #E2E2EC;
+        }
+        .chat-input-area { background: #0D0D11; border-top: 1px solid rgba(255,255,255,0.05); }
+        #chat-input { color: #E2E2EC; font-family: 'JetBrains Mono', monospace; }
+        #chat-send { color: #8A7AB8; }
+        #chat-send:hover { color: #74B095; }
+
+        /* FAB */
+        .fab-btn {
+            background: #0B0B0F;
+            border: 1px solid rgba(138, 122, 184,0.4);
+            color: #B4A8D6;
+            box-shadow: 0 0 16px rgba(138, 122, 184,0.2);
+        }
+        .fab-btn:hover {
+            box-shadow: 0 0 24px rgba(116, 176, 149,0.3);
+            border-color: rgba(116, 176, 149,0.4);
+            color: #74B095;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(138, 122, 184,0.25); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(116, 176, 149,0.3); }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+
+        /* Responsive nav */
+        @media (max-width: 860px) { .topnav-menu { display: none; } }
+
+
+        /* FORCE FULL WIDTH */
+        .container { margin-top:64px!important;margin-left:0!important;padding:0!important;display:block!important;width:100%!important; }
+        .main-content { padding:12px;width:100%; }
+
+        /* ── Data Layer Panel ── */
+        .layer-panel {
+            position: absolute;
+            top: 12px;
+            right: 52px;
+            z-index: 900;
+            background: rgba(11, 11, 15,0.95);
+            border: 1px solid rgba(138, 122, 184,0.3);
+            border-radius: 8px;
+            padding: 0;
+            min-width: 210px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        .layer-panel-hdr {
+            padding: 9px 14px;
+            border-bottom: 1px solid rgba(138, 122, 184,0.18);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #B4A8D6;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .layer-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .layer-row:last-child { border-bottom: none; }
+        .layer-row:hover { background: rgba(138, 122, 184,0.07); }
+        .layer-toggle {
+            width: 34px; height: 18px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 9px;
+            position: relative;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        .layer-toggle::after {
+            content: '';
+            position: absolute;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #5A5A6E;
+            top: 2px; left: 2px;
+            transition: all 0.2s;
+        }
+        .layer-toggle.on {
+            border-color: rgba(138, 122, 184,0.6);
+            background: rgba(138, 122, 184,0.2);
+        }
+        .layer-toggle.on::after { left: 18px; background: #B4A8D6; }
+        .layer-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .layer-label { font-size: 11px; color: #A3A0B2; font-family: 'JetBrains Mono', monospace; flex: 1; }
+        .layer-count { font-size: 10px; color: #5F5C70; font-family: 'Rajdhani', sans-serif; }
+        .layer-loading { width: 8px; height: 8px; border: 1px solid #B4A8D6; border-top-color: transparent;
+            border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; display: none; }
+    
+        /* Menü dar ekranda soldan kırpılmasın */
+        nav.topnav-menu { justify-content: safe center; min-width: 0; }
+</style>
+    <link rel="stylesheet" href="/static/css/so-theme.css">
+</head>
+
+<body class="so-shell">
+    <div class="bg-grid"></div>
+
+    {% include "_sidebar.html" %}
+    <header class="topnav">
+        <h1 class="so-top-title">SIGINT Map</h1>
+        <!-- RIGHT: Status -->
+        <div class="nav-stats">
+            <div class="stat-item">
+                <div class="status-dot" aria-hidden="true"></div>
+                <span id="device-counts">Standby</span>
+            </div>
+            <span id="error-message" style="display:none;margin-left:12px;color:#C77B7B;font-size:13px;"></span>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Main Content -->
+        <main class="main-content" id="main">
+            <div class="so-mapbar">
+                <div class="so-modes" role="group" aria-label="Sensor">
+                    <span class="mode-label active" id="label-wifi">WiFi</span>
+                    <label class="switch so-switch">
+                        <input type="checkbox" id="mode-switch" onchange="toggleMode()" aria-label="Switch between WiFi and Bluetooth sensors">
+                        <span class="slider"></span>
+                    </label>
+                    <span class="mode-label" id="label-bluetooth">Bluetooth</span>
+                </div>
+                <div class="so-toolbar">
+                    <select id="search-type" onchange="updateSearchPlaceholder()" aria-label="Search by">
+                        <option value="location">Coordinates</option>
+                        <option value="country">City / country</option>
+                        <option value="bssid">BSSID</option>
+                        <option value="ssid">Wi-Fi SSID</option>
+                        <option value="ip">IP address</option>
+                    </select>
+                    <input type="text" id="search-input" placeholder="41.0082, 28.9784" aria-label="Search">
+                    <button id="search-btn" class="so-btn so-btn-solid" onclick="performSearch()"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Search</button>
+                    <button id="mylocation-btn" class="so-btn so-btn-ghost" onclick="useMyLocation()" title="Use my current location"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>My location</button>
+                </div>
+            </div>
+            <div class="so-chips filter-row" role="group" aria-label="Signal types">
+                <label class="so-chip" style="--c:#7C9BC9"><input type="checkbox" checked class="filter-cb" value="router"><span class="so-dot"></span>WiFi<span class="so-cnt" data-cnt="router"></span></label>
+                <label class="so-chip" style="--c:#6F8FC9"><input type="checkbox" checked class="filter-cb" value="bluetooth"><span class="so-dot"></span>Bluetooth<span class="so-cnt" data-cnt="bluetooth"></span></label>
+                <label class="so-chip" style="--c:#6FA6B3"><input type="checkbox" checked class="filter-cb" value="ble"><span class="so-dot"></span>BLE<span class="so-cnt" data-cnt="ble"></span></label>
+                <label class="so-chip" style="--c:#C77B7B"><input type="checkbox" checked class="filter-cb" value="camera"><span class="so-dot"></span>CCTV<span class="so-cnt" data-cnt="camera"></span></label>
+                <label class="so-chip" style="--c:#C08A6E"><input type="checkbox" checked class="filter-cb" value="dashcam"><span class="so-dot"></span>Dashcam<span class="so-cnt" data-cnt="dashcam"></span></label>
+                <label class="so-chip" style="--c:#8FB59A"><input type="checkbox" checked class="filter-cb" value="tv"><span class="so-dot"></span>Smart TV<span class="so-cnt" data-cnt="tv"></span></label>
+                <label class="so-chip" style="--c:#C9B26A"><input type="checkbox" checked class="filter-cb" value="car"><span class="so-dot"></span>Vehicle<span class="so-cnt" data-cnt="car"></span></label>
+                <label class="so-chip" style="--c:#6FB3B8"><input type="checkbox" checked class="filter-cb" value="headphone"><span class="so-dot"></span>Audio<span class="so-cnt" data-cnt="headphone"></span></label>
+                <label class="so-chip" style="--c:#9A8CC4"><input type="checkbox" checked class="filter-cb" value="drone"><span class="so-dot"></span>Drone<span class="so-cnt" data-cnt="drone"></span></label>
+                <label class="so-chip" style="--c:#C27F92"><input type="checkbox" checked class="filter-cb" value="tracker"><span class="so-dot"></span>Tracker<span class="so-cnt" data-cnt="tracker"></span></label>
+                <label class="so-chip" style="--c:#C9A15A"><input type="checkbox" checked class="filter-cb" value="iot_device"><span class="so-dot"></span>IoT<span class="so-cnt" data-cnt="iot_device"></span></label>
+                <label class="so-chip" style="--c:#7FA9C4"><input type="checkbox" checked class="filter-cb" value="aircraft"><span class="so-dot"></span>Aircraft<span class="so-cnt" data-cnt="aircraft"></span></label>
+                <label class="so-chip" style="--c:#A58BB8"><input type="checkbox" checked class="filter-cb" value="cell_tower"><span class="so-dot"></span>Cell<span class="so-cnt" data-cnt="cell_tower"></span></label>
+            </div>
+
+
+                <!-- Gemini Auto-Analysis Panel -->
+                <div id="gemini-analysis-panel" style="display:none;margin-bottom:14px;
+                  background:rgba(138, 122, 184,0.05);border:1px solid rgba(138, 122, 184,0.25);
+                  border-radius:8px;padding:16px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                    <div style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;
+                      letter-spacing:2px;color:#B4A8D6"> Gemini SIGINT analysis</div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span id="gem-risk-badge" style="font-family:'Rajdhani',sans-serif;font-size:11px;
+                        font-weight:700;letter-spacing:1px;padding:3px 10px;border-radius:3px;display:none"></span>
+                      <button onclick="document.getElementById('gemini-analysis-panel').style.display='none'"
+                        style="background:none;border:none;color:#76738A;cursor:pointer;font-size:16px">✕</button>
+                    </div>
+                  </div>
+                  <div id="gemini-analysis-text" style="font-size:12px;color:#A3A0B2;
+                    line-height:1.8;white-space:pre-wrap;font-family:'JetBrains Mono',monospace"></div>
+                </div>
+
+            <div class="surveillance-grid">
+                <div class="results-sidebar" id="results-list">
+                    <div style="text-align:center;padding:70px 20px;font-family:'Rajdhani',sans-serif;">
+                        <div style="font-size:40px;margin-bottom:16px;opacity:0.15;"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a10 10 0 0 1 0-14"/><path d="M8.5 15.5a5 5 0 0 1 0-7"/><circle cx="12" cy="12" r="1.5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg></div>
+                        <div style="font-size:13px;letter-spacing:3px;color:#76738A;margin-bottom:6px;">Awaiting scan</div>
+                        <div style="font-size:11px;color:#5F5C70;font-family:'JetBrains Mono',monospace;line-height:1.7;">
+                            Click anywhere on the map<br>to begin signal acquisition
+                        </div>
+                    </div>
+                </div>
+                <div class="map-container" style="position:relative">
+                    <div id="map"></div>
+
+                    <!-- Data Layer Panel -->
+                    <div class="layer-panel" id="layer-panel">
+                        <div class="layer-panel-hdr"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a10 10 0 0 1 0-14"/><path d="M8.5 15.5a5 5 0 0 1 0-7"/><circle cx="12" cy="12" r="1.5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg> Data Layers</div>
+                        <div class="layer-row" onclick="toggleLayer('osm-cameras')">
+                            <div class="layer-toggle" id="toggle-osm-cameras"></div>
+                            <div class="layer-dot" style="background:#B4A8D6"></div>
+                            <span class="layer-label">OSM Cameras</span>
+                            <div class="layer-loading" id="load-osm-cameras"></div>
+                            <span class="layer-count" id="cnt-osm-cameras"></span>
+                        </div>
+                        <div class="layer-row" onclick="toggleLayer('flock-net')">
+                            <div class="layer-toggle" id="toggle-flock-net"></div>
+                            <div class="layer-dot" style="background:#C77B7B"></div>
+                            <span class="layer-label">ALPR / Flock</span>
+                            <div class="layer-loading" id="load-flock-net"></div>
+                            <span class="layer-count" id="cnt-flock-net"></span>
+                        </div>
+                        <div class="layer-row" onclick="toggleLayer('precincts')">
+                            <div class="layer-toggle" id="toggle-precincts"></div>
+                            <div class="layer-dot" style="background:#C9A15A"></div>
+                            <span class="layer-label">Police Precincts</span>
+                            <div class="layer-loading" id="load-precincts"></div>
+                            <span class="layer-count" id="cnt-precincts"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-bottom: 30px;">
+                <a href="#" class="download-btn" id="download-btn" style="display: none;">Download Intel Report</a>
+                <span id="so-case-bar" style="display:inline-flex;align-items:center"></span>
+            </div>
+            <div class="toast" id="toast">No connections intercepted</div>
+    </div>
+    </div>
+
+    <!-- Leaflet JS already loaded in <head> -->
+    <!-- Leaflet MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script>
+        let map;
+        let markers = L.markerClusterGroup();
+        let results = [];
+
+        // Vaka araç çubuğu (Save to case / Export) — tüm sonuçlar (filtreden bağımsız), merkez = son tarama noktası
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.SignalOpsCase) SignalOpsCase.attach(document.getElementById('so-case-bar'), {
+                kind: 'nearby', title: 'SIGINT Map',
+                getDevices: () => results,
+                getCenter: () => window.lastScanCoords || null,
+            });
+        });
+
+        // ─── Global state for data layers (used by toggleLayer) ────
+        // Defined up-front at top level so inline onclick="toggleLayer(...)" can ALWAYS find it,
+        // even before initMap() finishes or if initMap throws.
+        window._layerState  = { 'osm-cameras': false, 'flock-net': false, 'precincts': false };
+        window._layerGroups = null;  // Populated by initMap once Leaflet is ready
+        window._layerInitialized = false;
+
+        window.toggleLayer = function(id) {
+            if (!window._layerInitialized || !map || !window._layerGroups) {
+                console.warn('[toggleLayer] Map not ready yet, ignoring click on', id);
+                return;
+            }
+            const tog = document.getElementById('toggle-' + id);
+            window._layerState[id] = !window._layerState[id];
+            if (window._layerState[id]) {
+                if (tog) tog.classList.add('on');
+                map.addLayer(window._layerGroups[id]);
+                if (typeof window._refreshLayer === 'function') window._refreshLayer(id);
+            } else {
+                if (tog) tog.classList.remove('on');
+                map.removeLayer(window._layerGroups[id]);
+            }
+        };
+
+        function initMap() {
+            map = L.map('map').setView([51.505, -0.09], 13);
+
+            // Base tile layers
+            const cyberLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            });
+
+            const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri, Maxar, Earthstar Geographics',
+                maxZoom: 19
+            });
+
+            // SIGINT OPS — same Esri tiles, styled dark with scanline overlay via CSS
+            const sigintLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri · SIGINT Ops overlay',
+                maxZoom: 19
+            });
+
+            const hybridLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '© Google Maps'
+            });
+
+            // StreetView — vibrant full-color map with roads, parks, buildings.
+            const streetLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '© Google Maps'
+            });
+
+            // DRONE FPV — satellite imagery with HUD overlay (crosshair, REC, telemetry via CSS)
+            const droneLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri · Drone FPV mode',
+                maxZoom: 19
+            });
+
+            // LIGHT — clean light CartoDB Voyager (crisp, readable, with street names)
+            const lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                subdomains: 'abcd',
+                maxZoom: 20,
+                attribution: '© OpenStreetMap © CARTO'
+            });
+
+            // MATRIX — pure green cyber aesthetic (OSM tiles heavily filtered via CSS)
+            const matrixLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap · Matrix mode'
+            });
+
+            // TERRAIN — topographic map with elevation shading (Stamen Terrain via Stadia)
+            const terrainLayer = L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png', {
+                maxZoom: 18,
+                attribution: '© Stadia · Stamen · OpenStreetMap'
+            });
+
+            // OSM ROADMAP — pure OpenStreetMap, Türkçe sokak isimleri (no filter)
+            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            });
+
+            const baseLayers = {
+                "CyberMap":   cyberLayer,
+                "SIGINT Ops": sigintLayer,
+                "SatView":    satelliteLayer,
+                "Hybrid":     hybridLayer,
+                "StreetView": streetLayer,
+                "Drone FPV":   droneLayer,
+                "Light":        lightLayer,
+                "⋙ Matrix":       matrixLayer,
+                "Terrain":      terrainLayer,
+                "OSM Roads":    osmLayer,
+            };
+
+            L.control.layers(baseLayers).addTo(map);
+            cyberLayer.addTo(map);
+            document.getElementById('map').classList.add('cyber-map');
+
+            map.on('baselayerchange', (e) => {
+                const mapEl = document.getElementById('map');
+                // Remove all mode classes, then add the right one
+                mapEl.classList.remove('cyber-map', 'sigint-map', 'street-map',
+                    'drone-map', 'light-map', 'matrix-map', 'terrain-map', 'osm-map');
+                document.body.classList.remove('sat-mode', 'light-map-mode', 'terrain-map-mode');
+
+                if (e.name === "CyberMap") {
+                    mapEl.classList.add('cyber-map');
+                } else if (e.name === "SIGINT Ops") {
+                    mapEl.classList.add('sigint-map');
+                } else if (e.name === "StreetView") {
+                    mapEl.classList.add('street-map');
+                } else if (e.name === "Drone FPV") {
+                    mapEl.classList.add('drone-map');
+                } else if (e.name === "Light") {
+                    mapEl.classList.add('light-map');
+                    document.body.classList.add('light-map-mode');
+                } else if (e.name === "⋙ Matrix") {
+                    mapEl.classList.add('matrix-map');
+                } else if (e.name === "Terrain") {
+                    mapEl.classList.add('terrain-map');
+                    document.body.classList.add('terrain-map-mode');
+                } else if (e.name === "OSM Roads") {
+                    mapEl.classList.add('osm-map');
+                } else if (e.name === "SatView" || e.name === "Hybrid") {
+                    document.body.classList.add('sat-mode');
+                }
+
+                // Remember choice across modules
+                try { localStorage.setItem('sigops_map_style', e.name); } catch(err) {}
+            });
+
+            // Restore last-used style on load
+            try {
+                const saved = localStorage.getItem('sigops_map_style');
+                if (saved && baseLayers[saved]) {
+                    map.removeLayer(cyberLayer);
+                    baseLayers[saved].addTo(map);
+                    map.fire('baselayerchange', { name: saved, layer: baseLayers[saved] });
+                }
+            } catch(err) {}
+
+            map.on('click', async (e) => {
+                const { lat, lng } = e.latlng;
+                await fetchNearbyDevices(lat, lng);
+            });
+
+            map.addLayer(markers);
+
+            // ── Data Layers ──────────────────────────────────────
+            const osmCameraLayer  = L.layerGroup();
+            const flockNetLayer   = L.layerGroup();
+            const precinctsLayer  = L.layerGroup();
+
+            // Populate the GLOBAL layer groups (defined at the top of the script)
+            // so window.toggleLayer can access them. Previously these were trapped in initMap scope.
+            window._layerGroups = {
+                'osm-cameras': osmCameraLayer,
+                'flock-net':   flockNetLayer,
+                'precincts':   precinctsLayer
+            };
+            let _flockLoaded  = false;
+            let _precinctsLoaded = false;
+            let _precinctsLastBounds = null;
+
+            function setLoading(id, on) {
+                const el = document.getElementById('load-' + id);
+                if (el) el.style.display = on ? 'block' : 'none';
+            }
+            function setCount(id, n, clipped) {
+                const el = document.getElementById('cnt-' + id);
+                if (!el) return;
+                el.textContent = n > 0 ? (clipped ? n + '*' : n) : (clipped ? '0*' : '');
+                el.title = clipped ? 'Alan çok geniş — canlı OSM verisi görünen alanın merkezinden alındı. Tam kapsama için yakınlaştır.' : '';
+            }
+            // Görünen alan anlamlı değişti mi? (kaydırma veya yakınlaştırma)
+            function boundsChanged(prev, b, tol) {
+                if (!prev) return true;
+                const spanA = prev.getNorth() - prev.getSouth(), spanB = b.getNorth() - b.getSouth();
+                return Math.abs(b.getCenter().lat - prev.getCenter().lat) > tol * spanA ||
+                       Math.abs(b.getCenter().lng - prev.getCenter().lng) > tol * (prev.getEast() - prev.getWest()) ||
+                       Math.abs(spanA - spanB) / Math.max(spanA, 1e-6) > 0.3;
+            }
+
+            // Alias global _layerState locally for the rest of initMap
+            const layerState  = window._layerState;
+            const layerGroups = window._layerGroups;
+
+            // ── OSM Cameras (bbox-based from CAMERAS_WITH_NETWORK_DATA.geojson) ──
+            let _osmLastBounds = null;
+
+            async function loadOsmTilesForView() {
+                if (!layerState['osm-cameras']) return;
+                const b = map.getBounds();
+                // Skip if bounds haven't changed significantly
+                if (_osmLastBounds) {
+                    const sameBounds =
+                        Math.abs(b.getNorth() - _osmLastBounds.getNorth()) < 0.05 &&
+                        Math.abs(b.getSouth() - _osmLastBounds.getSouth()) < 0.05 &&
+                        Math.abs(b.getEast()  - _osmLastBounds.getEast())  < 0.05 &&
+                        Math.abs(b.getWest()  - _osmLastBounds.getWest())  < 0.05;
+                    if (sameBounds) return;
+                }
+                _osmLastBounds = b;
+                osmCameraLayer.clearLayers();
+                setLoading('osm-cameras', true);
+                try {
+                    const url = `/api/osm-cameras?lat1=${b.getSouth()}&lon1=${b.getWest()}&lat2=${b.getNorth()}&lon2=${b.getEast()}&limit=800`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    (data.features || []).forEach(f => {
+                        const [lng, lat] = f.geometry.coordinates;
+                        const p = f.properties || {};
+                        const zone = p['surveillance:zone'] || p['surveillance:type'] || '';
+                        const zoneColor = {
+                            traffic: '#FBBF24', public: '#C084FC',
+                            area: '#60A5FA', building: '#F87171'
+                        }[zone] || '#C084FC';
+                        const marker = L.circleMarker([lat, lng], {
+                            radius: 5, fillColor: zoneColor, color: '#7C3AED',
+                            weight: 1, fillOpacity: 0.8
+                        }).bindPopup(`<div style="font-family:monospace;font-size:11px;min-width:180px">
+                            <b style="color:#C084FC">OSM Surveillance Camera</b><br>
+                            ${p.name ? `<b>${escapeHtml(p.name)}</b><br>` : ''}
+                            ${p.operator ? `Operator: <span style="color:#A78BFA">${escapeHtml(p.operator)}</span><br>` : ''}
+                            ${p['camera:type'] ? `Camera: ${escapeHtml(p['camera:type'])}<br>` : ''}
+                            ${p['surveillance:type'] ? `Type: ${escapeHtml(p['surveillance:type'])}<br>` : ''}
+                            ${p['surveillance:zone'] ? `Zone: <b style="color:#FBBF24">${escapeHtml(p['surveillance:zone'])}</b><br>` : ''}
+                            ${p.website ? `<a href="${safeUrl(p.website)}" target="_blank" rel="noopener noreferrer" style="color:#4ADE80">Link</a>` : ''}
+                        </div>`);
+                        osmCameraLayer.addLayer(marker);
+                    });
+                    setCount('osm-cameras', osmCameraLayer.getLayers().length, data.clipped);
+                } catch(e) { console.warn('[OSM Cameras]', e); }
+                setLoading('osm-cameras', false);
+            }
+
+            // ── ALPR / Flock Safety Cameras ──────────────────────
+            async function loadFlockNetworks() {
+                if (_flockLoaded) return;
+                setLoading('flock-net', true);
+                try {
+                    const b = map.getBounds();
+                    const url = `/api/flock-networks?lat1=${b.getSouth()}&lon1=${b.getWest()}&lat2=${b.getNorth()}&lon2=${b.getEast()}&limit=500`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    const feats = data.features || [];
+                    feats.forEach(f => {
+                        const [lon, lat] = f.geometry.coordinates;
+                        const p = f.properties || {};
+                        // Flock cams get a brighter red, generic ALPR a softer red
+                        const isFlock = p.is_flock === true ||
+                                        /flock/i.test(p.manufacturer || '') ||
+                                        /flock/i.test(p.operator || '');
+                        const marker = L.circleMarker([lat, lon], {
+                            radius: isFlock ? 6 : 5,
+                            fillColor: isFlock ? '#EF4444' : '#F87171',
+                            color: isFlock ? '#DC2626' : '#F87171',
+                            weight: 1.5,
+                            fillOpacity: isFlock ? 0.95 : 0.75
+                        });
+                        // Build popup
+                        const manuf   = p.manufacturer || '—';
+                        const oper    = p.operator     || '—';
+                        const stype   = p['surveillance:type'] || p['camera:type'] || 'ALPR';
+                        const zone    = p['surveillance:zone'] || '—';
+                        const dir     = p.direction    || '—';
+                        const flockTag = isFlock
+                            ? `<span style="background:#DC2626;color:white;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700">FLOCK SAFETY</span>`
+                            : '';
+                        marker.bindPopup(`<div style="font-family:monospace;font-size:11px;min-width:200px">
+                            <b style="color:#EF4444">ALPR Camera</b> ${flockTag}<br>
+                            <hr style="border:0;border-top:1px solid #333;margin:4px 0">
+                            <b>Type:</b> ${escapeHtml(stype)}<br>
+                            <b>Manufacturer:</b> ${escapeHtml(manuf)}<br>
+                            <b>Operator:</b> ${escapeHtml(oper)}<br>
+                            <b>Zone:</b> ${escapeHtml(zone)}<br>
+                            <b>Direction:</b> ${escapeHtml(dir)}°<br>
+                            <b>Source:</b> ${escapeHtml(p._src || '—')}
+                        </div>`);
+                        flockNetLayer.addLayer(marker);
+                    });
+                    setCount('flock-net', feats.length, data.clipped);
+                    _flockLoaded = true;
+                    _flockLastBounds = b;
+                } catch(e) {
+                    console.error('[flock-net] load error:', e);
+                }
+                setLoading('flock-net', false);
+            }
+
+            // ── Police Precincts ─────────────────────────────────
+            async function loadPrecincts() {
+                if (_precinctsLoaded) return;
+                setLoading('precincts', true);
+                try {
+                    const b = map.getBounds();
+                    const url = `/api/precincts?lat1=${b.getSouth()}&lon1=${b.getWest()}&lat2=${b.getNorth()}&lon2=${b.getEast()}`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    const feats = data.features || [];
+                    L.geoJSON({type:'FeatureCollection', features: feats}, {
+                        style: {
+                            color: '#FBBF24', weight: 1.5, opacity: 0.7,
+                            fillColor: '#FBBF24', fillOpacity: 0.06
+                        },
+                        onEachFeature: (f, layer) => {
+                            const p = f.properties || {};
+                            layer.bindPopup(`<div style="font-family:monospace;font-size:11px">
+                                <b style="color:#FBBF24">Precinct ${escapeHtml(p.DISTRICT || p.ID || '?')}</b><br>
+                                ${p.city ? `City: ${escapeHtml(p.city)}<br>` : ''}
+                                ${p.source_file ? `Source: ${escapeHtml(p.source_file)}` : ''}
+                            </div>`);
+                        }
+                    }).addTo(precinctsLayer);
+                    setCount('precincts', feats.length, data.clipped);
+                    _precinctsLoaded = true;
+                    _precinctsLastBounds = b;
+                } catch(e) { console.warn('[precincts]', e); }
+                setLoading('precincts', false);
+            }
+
+            function refreshLayer(id) {
+                if (id === 'osm-cameras') loadOsmTilesForView();
+                if (id === 'flock-net')   loadFlockNetworks();
+                if (id === 'precincts')   loadPrecincts();
+            }
+            // Expose so global window.toggleLayer can call it
+            window._refreshLayer = refreshLayer;
+
+            function latLonToTile(lat, lon, z) {
+                const n = Math.pow(2, z);
+                const x = Math.floor((lon + 180) / 360 * n);
+                const latR = lat * Math.PI / 180;
+                const y = Math.floor((1 - Math.asinh(Math.tan(latR)) / Math.PI) / 2 * n);
+                return [x, y];
+            }
+
+            // Reload layers when map pans/zooms significantly
+            let _flockLastBounds = null;
+            map.on('moveend', () => {
+                if (layerState['osm-cameras']) loadOsmTilesForView();
+                // Reload ALPR/Flock on meaningful pan (>0.2° change)
+                if (layerState['flock-net']) {
+                    const b = map.getBounds();
+                    if (boundsChanged(_flockLastBounds, b, 0.25)) {
+                        _flockLastBounds = b;
+                        _flockLoaded = false;
+                        flockNetLayer.clearLayers();
+                        loadFlockNetworks();
+                    }
+                }
+                // Karakollar da görünen alana göre yenilenir (eskiden sadece ilk açılışta yükleniyordu)
+                if (layerState['precincts']) {
+                    const b = map.getBounds();
+                    if (boundsChanged(_precinctsLastBounds, b, 0.25)) {
+                        _precinctsLoaded = false;
+                        precinctsLayer.clearLayers();
+                        loadPrecincts();
+                    }
+                }
+            });
+
+            // Signal that map + layers are ready — now toggleLayer can safely act
+            window._layerInitialized = true;
+            console.log('[wifi_search] initMap complete, toggleLayer ready');
+
+            // Deep-link: /map-w?lat=..&lon=.. (e.g. dashboard quickScan) → center + scan there
+            try {
+                const qs = new URLSearchParams(location.search);
+                const rawLat = qs.get('lat'), rawLon = qs.get('lon');
+                const qLat = rawLat !== null && rawLat.trim() !== '' ? Number(rawLat) : NaN;
+                const qLon = rawLon !== null && rawLon.trim() !== '' ? Number(rawLon) : NaN;
+                if (Number.isFinite(qLat) && Number.isFinite(qLon) &&
+                    qLat >= -90 && qLat <= 90 && qLon >= -180 && qLon <= 180) {
+                    map.setView([qLat, qLon], map.getZoom());
+                    fetchNearbyDevices(qLat, qLon);
+                }
+            } catch (err) { console.warn('[wifi_search] deep-link coords ignored:', err); }
+        }
+
+        // Toggle Mode logic
+        function toggleMode() {
+            const isBT = document.getElementById('mode-switch').checked;
+            document.getElementById('label-wifi').classList.toggle('active', !isBT);
+            document.getElementById('label-bluetooth').classList.toggle('active', isBT);
+            markers.clearLayers();
+            results = [];
+            showToast(`SENSORS_SWITCHED: ${isBT ? 'BLUETOOTH' : 'WIFI'}`);
+        }
+
+        // Fetch nearby devices from Flask backend
+        async function fetchNearbyDevices(lat, lon) {
+            const mode = document.getElementById('mode-switch').checked ? 'bluetooth' : 'wifi';
+            const countEl = document.getElementById('device-counts');
+            const listEl  = document.getElementById('results-list');
+
+            // Scanning state
+            countEl.innerHTML = '<span style="color:#A78BFA;">SCANNING...</span>';
+            listEl.innerHTML = `
+                <div style="text-align:center;padding:70px 20px;">
+                    <div style="font-size:32px;color:#8B5CF6;animation:spin 1.2s linear infinite;display:inline-block;margin-bottom:14px;">◌</div><br>
+                    <div style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:3px;color:#8B5CF6;margin-bottom:6px;">SCANNING SIGNALS</div>
+                    <div style="font-size:11px;color:#3A3A4E;font-family:'JetBrains Mono',monospace;">${lat.toFixed(5)}, ${lon.toFixed(5)}</div>
+                </div>`;
+
+            try {
+                const res = await fetch(`/nearby?lat=${lat}&lon=${lon}&mode=${mode}`);
+                let data;
+                try { data = await res.json(); } catch (e) { data = null; }
+                if (!res.ok && !(data && data.error)) throw new Error(`HTTP ${res.status}`);
+                if (!data) throw new Error('Invalid JSON response');
+
+                if (data.error) {
+                    countEl.textContent = 'ERROR';
+                    listEl.innerHTML = noSignalHTML('API Error: ' + escapeHtml(data.error));
+                    return;
+                }
+
+                const devices = data.devices || [];
+                const count = devices.length;
+
+                if (count === 0) {
+                    countEl.textContent = 'NO SIGNAL';
+                    listEl.innerHTML = noSignalHTML('No signals detected at this location.<br>Try an area with known WiFi or IoT devices.');
+                    return;
+                }
+
+                // Expose to window so chatbox can build map context
+                window.lastScanDevices = devices;
+                window.lastScanCoords  = { lat, lon };
+
+                countEl.textContent = count + ' DEVICES';
+                showToast('✓ ' + count + ' signals acquired');
+                updateMap(data);
+
+                // Auto Gemini analysis
+                try {
+                    const pos = map.getCenter();
+                    const aRes = await fetch('/api/analyze', {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({devices, lat: pos.lat, lon: pos.lng})
+                    });
+                    const aData = await aRes.json();
+                    if (aData.analysis) {
+                        document.getElementById('gemini-analysis-text').textContent = aData.analysis;
+                        const badge = document.getElementById('gem-risk-badge');
+                        const rl = (aData.risk_level||'').toUpperCase();
+                        badge.textContent = rl;
+                        badge.style.display = 'inline-block';
+                        const colors = {CRITICAL:'#F87171',HIGH:'#FBBF24',MEDIUM:'#A78BFA',LOW:'#4ADE80'};
+                        badge.style.background = `rgba(${rl==='CRITICAL'?'248,113,113':rl==='HIGH'?'251,191,36':rl==='MEDIUM'?'167,139,250':'74,222,128'},0.12)`;
+                        badge.style.color = colors[rl]||'#9896AE';
+                        badge.style.border = `1px solid ${colors[rl]||'#9896AE'}44`;
+                        document.getElementById('gemini-analysis-panel').style.display = 'block';
+                    }
+                } catch(e) { console.warn('Gemini auto-analyze skipped:', e); }
+
+            } catch (err) {
+                countEl.textContent = 'OFFLINE';
+                listEl.innerHTML = noSignalHTML('Backend connection failed.<br>Flask running on :8080?');
+                console.error(err);
+            }
+        }
+
+        function noSignalHTML(msg) {
+            return `<div style="
+                text-align:center;padding:60px 20px;
+                font-family:'Rajdhani',sans-serif;">
+                <div style="font-size:40px;margin-bottom:16px;opacity:0.2;"></div>
+                <div style="font-size:13px;letter-spacing:2px;color:#52525E;margin-bottom:8px;">NO SIGNAL ACQUIRED</div>
+                <div style="font-size:11px;color:#3A3A4E;line-height:1.6;font-family:'JetBrains Mono',monospace;">${msg}</div>
+            </div>`;
+        }
+
+        // Update search input placeholder based on selected type
+        function updateSearchPlaceholder() {
+            const t = document.getElementById('search-type').value;
+            const input = document.getElementById('search-input');
+            const placeholders = {
+                location: '41.0082, 28.9784  —  lat,lon coordinates',
+                country:  'Istanbul  /  Turkey  /  New York  /  Berlin',
+                bssid:    '00:11:22:33:44:55',
+                ssid:     'FREEWIFI_PUBLIC',
+                ip:       '8.8.8.8'
+            };
+            input.placeholder = placeholders[t] || 'Enter search term';
+            input.value = '';
+        }
+
+        // Pull user's GPS location, fill the search box, and auto-run the search.
+        // Reuses the saved coords (from a previous permission grant) when available,
+        // otherwise prompts the browser for fresh permission.
+        function useMyLocation() {
+            const btn = document.getElementById('mylocation-btn');
+            const originalText = btn.innerHTML;
+            btn.textContent = 'Locating…';
+            btn.disabled = true;
+
+            const fillAndSearch = (lat, lon, source) => {
+                // Switch to coords mode
+                document.getElementById('search-type').value = 'location';
+                updateSearchPlaceholder();
+                const q = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+                document.getElementById('search-input').value = q;
+                // Save coords for other modules (same key used across SIGOPS)
+                try { localStorage.setItem('sigops_last_coords', JSON.stringify({lat, lon})); } catch(e){}
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showToast(`Using ${source} location — scanning...`);
+                performSearch();
+            };
+
+            // Try cached coords first (fast path, no permission prompt)
+            try {
+                const saved = JSON.parse(localStorage.getItem('sigops_last_coords') || 'null');
+                if (saved && typeof saved.lat === 'number' && typeof saved.lon === 'number') {
+                    // Ask the browser for fresh position anyway but use cached as fallback
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                            p => fillAndSearch(p.coords.latitude, p.coords.longitude, 'GPS'),
+                            () => fillAndSearch(saved.lat, saved.lon, 'cached'),
+                            {timeout: 6000, maximumAge: 30000, enableHighAccuracy: false}
+                        );
+                        return;
+                    }
+                    fillAndSearch(saved.lat, saved.lon, 'cached');
+                    return;
+                }
+            } catch(e){}
+
+            // No cache → request permission
+            if (!navigator.geolocation) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showToast('Browser does not support geolocation');
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                p => fillAndSearch(p.coords.latitude, p.coords.longitude, 'GPS'),
+                err => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    showToast('Location denied: ' + (err.message || 'permission required'));
+                },
+                {timeout: 8000, enableHighAccuracy: true}
+            );
+        }
+
+        // Extract a human-readable device name from SSID/vendor/bssid.
+        // Falls back to "Unknown <type>" only when nothing identifying is available.
+        function getBestDeviceName(node) {
+            const ssid = (node.ssid || '').trim();
+            const vendor = (node.vendor || '').trim();
+            const bssid = (node.bssid || '').trim();
+            const ip = node.ip || '';
+
+            // SSID is the strongest identifier when it's a real name (not a mac address)
+            if (ssid && !/^[0-9a-f:]+$/i.test(ssid)) return ssid;
+
+            // Vendor-based fallback: combine vendor + device class
+            if (vendor && vendor.toLowerCase() !== 'unknown') {
+                const t = node.type || '';
+                const typeLabel = {
+                    'car': 'Vehicle', 'tv': 'Smart TV', 'dashcam': 'Dashcam',
+                    'headphone': 'Audio Device', 'tracker': 'Tracker',
+                    'camera': 'Camera', 'drone': 'Drone', 'obd': 'OBD Scanner',
+                    'bluetooth': 'BT Device', 'ble': 'BLE Device'
+                }[t] || 'Device';
+                return `${vendor} ${typeLabel}`;
+            }
+
+            // IP-based fallback for network devices
+            if (ip) return ip;
+
+            // BSSID as last resort
+            if (bssid) return bssid.toUpperCase();
+
+            return `Unknown ${node.type || 'Node'}`;
+        }
+
+        // Perform search based on input
+        async function performSearch() {
+            const searchType  = document.getElementById('search-type').value;
+            const searchInput = document.getElementById('search-input').value;
+            if (!searchInput) {
+                showToast('Enter a search term first');
+                return;
+            }
+
+            const countEl = document.getElementById('device-counts');
+            const listEl  = document.getElementById('results-list');
+            countEl.innerHTML = '<span style="color:#A78BFA;animation:pulse 1s infinite">SEARCHING...</span>';
+            listEl.innerHTML  = `
+                <div style="text-align:center;padding:60px 20px;">
+                    <div style="font-size:28px;margin-bottom:12px;animation:spin 1.5s linear infinite;display:inline-block;color:#8B5CF6;">◌</div><br>
+                    <div style="font-family:'Rajdhani',sans-serif;font-size:13px;letter-spacing:2px;color:#8B5CF6;">QUERYING SOURCES...</div>
+                </div>`;
+
+            try {
+                const mode = document.getElementById('mode-switch').checked ? 'bluetooth' : 'wifi';
+                const response = await fetch(`/api/search?type=${searchType}&query=${encodeURIComponent(searchInput)}&mode=${mode}`);
+                const data = await response.json();
+                console.log('Search response:', data);
+
+                if (data.error) {
+                    countEl.textContent = 'ERROR';
+                    listEl.innerHTML = `<div style="text-align:center;padding:40px 20px;color:#F87171">
+                        <div style="font-size:24px;margin-bottom:8px"></div>
+                        <div style="font-size:12px;line-height:1.6">${escapeHtml(data.error)}</div>
+                    </div>`;
+                    showToast('' + data.error);
+                    return;
+                }
+
+                const count = (data.devices || []).length;
+                countEl.textContent = `${count} RESULTS`;
+                updateMap(data);
+
+                // If the search returned a location center (country/location search), zoom the map there.
+                const firstDev = (data.devices || [])[0];
+                const center = firstDev && firstDev.search_center;
+                if (center && center.lat != null && center.lon != null) {
+                    map.setView([center.lat, center.lon], count > 0 ? 11 : 6);
+                    if (center.place) showToast(`${center.place.split(',')[0]} — ${count} devices`);
+                } else if (count > 0) {
+                    // Auto-fit bounds to the returned devices
+                    const bounds = L.latLngBounds((data.devices || [])
+                        .filter(d => d.lat && d.lon)
+                        .map(d => [d.lat, d.lon]));
+                    if (bounds.isValid()) map.fitBounds(bounds, {padding: [50, 50], maxZoom: 14});
+                }
+
+                showToast(count > 0 ? `✓ ${count} results found` : 'No results found for this area');
+            } catch (err) {
+                countEl.textContent = 'OFFLINE';
+                listEl.innerHTML = noSignalHTML('Search request failed.<br>Backend unreachable or returned invalid data.');
+                showToast('Connection error');
+                console.error('Search error:', err);
+            }
+        }
+
+        // Update map with device markers
+        let markerMap = {};
+
+        function updateMap(data) {
+            markers.clearLayers();
+            markerMap = {};
+            if (data && data.devices) results = data.devices;
+            console.log('Processed results for map:', results);
+
+            // Get active filters
+            const activeFilters = Array.from(document.querySelectorAll('.filter-cb:checked')).map(cb => cb.value);
+
+            // Apply filtering
+            const filteredResults = results.filter(device => {
+                const type = device.type || 'unknown';
+                if (type === 'router' || type === 'cell_tower' || type === 'iot_device') {
+                    // For WiFi mode, show these if bluetooth isn't the primary focus 
+                    // or if they match generic categories. 
+                    // Actually, simple logic: if it's in the filters, show it.
+                    return activeFilters.includes(type) || activeFilters.includes('router');
+                }
+                return activeFilters.includes(type);
+            });
+
+            if (filteredResults.length === 0) {
+                document.getElementById('device-counts').textContent = 'NO SIGNAL';
+                document.getElementById('results-list').innerHTML = noSignalHTML(
+                    'No signals match active filters.<br>Try enabling more categories above.'
+                );
+                document.getElementById('download-btn').style.display = 'none';
+                return;
+            }
+
+            renderSidebar(filteredResults);
+
+            filteredResults.forEach((device, index) => {
+                const { lat, lon, ssid, bssid, cell_id, ip, vendor, signal, accuracy, timestamp, type, leaked,
+                        encryption, risk, source, port, operator, radio, altitude, org, classification } = device;
+                if (lat && lon) {
+                    const icon = getDeviceIcon(type, leaked, device.loc_quality === 'approx');
+                    const riskNum = Number(risk) || 0;
+                    const riskColor = risk >= 70 ? '#FF2244' : risk >= 40 ? '#FF8800' : '#A78BFA';
+                    const riskBar = risk ? `
+                        <div style="margin: 6px 0 2px; font-size: 9px; color: ${riskColor};">RISK SCORE: ${riskNum}/100</div>
+                        <div style="background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px;">
+                          <div style="width:${Math.max(0, Math.min(100, riskNum))}%; height:4px; background:${riskColor}; border-radius:2px; box-shadow: 0 0 6px ${riskColor};"></div>
+                        </div>` : '';
+                    const marker = L.marker([lat, lon], { icon })
+                        .bindPopup(`
+                            <div style="font-family: 'Share Tech Mono', monospace; color: var(--primary-color); min-width:220px;">
+                                <strong style="font-size: 14px;">${escapeHtml(ssid || cell_id || ip || 'Unknown Node')}</strong><br>
+                                <hr style="border: 0.5px solid rgba(0,255,209,0.2); margin: 5px 0;">
+                                <span style="font-size: 10px; color: #fff;">CATEGORY: <span style="color:${riskColor}">${type ? escapeHtml(String(type).toUpperCase()) : 'UNKNOWN'}</span></span><br>
+                                ${bssid ? `BSSID: ${escapeHtml(bssid)}<br>` : ''}
+                                ${ip    ? `IP: ${escapeHtml(ip)}<br>` : ''}
+                                ${port  ? `PORT: ${escapeHtml(port)}<br>` : ''}
+                                ${vendor ? `VENDOR: ${escapeHtml(vendor)}<br>` : ''}
+                                ${org   ? `ORG: ${escapeHtml(org)}<br>` : ''}
+                                ${operator ? `OPERATOR: ${escapeHtml(operator)}<br>` : ''}
+                                ${radio ? `RADIO: ${escapeHtml(String(radio).toUpperCase())}<br>` : ''}
+                                ${encryption ? `ENC: ${escapeHtml(encryption)}<br>` : ''}
+                                ${signal ? `SIGNAL: ${escapeHtml(signal)} dBm<br>` : ''}
+                                ${accuracy ? `ACCURACY: ${escapeHtml(accuracy)} m<br>` : ''}
+                                ${altitude != null ? `ALTITUDE: ${escapeHtml(altitude)} m<br>` : ''}
+                                ${timestamp ? `LAST_SEEN: ${escapeHtml(new Date(timestamp).toLocaleString())}<br>` : ''}
+                                ${classification ? `<span style="color:#FF8800;">THREAT: ${escapeHtml(String(classification).toUpperCase())}</span><br>` : ''}
+                                ${leaked ? `<span style="color: #FF4444; font-weight: bold;">OPEN/WEAK ENCRYPTION</span><br>` : ''}
+                                ${device.wpasec_hit ? `<div style="background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.4);border-radius:4px;padding:6px 8px;margin:4px 0">
+                                  <span style="color:#F87171;font-weight:bold;font-size:11px">WPA-SEC CRACKED</span><br>
+                                  <span style="color:#F87171;font-size:11px">Password: <b>${escapeHtml(device.cracked_pass||'?')}</b></span>
+                                </div>` : ''}
+                                ${locNoteHtml(device)}
+                                ${riskBar}
+                                ${source ? `<span style="font-size:9px;color:rgba(0,255,209,0.4);">SRC: ${escapeHtml(String(source).toUpperCase())}</span>` : ''}
+                            </div>
+                        `);
+                    markers.addLayer(marker);
+                    markerMap[index] = marker;
+                }
+            });
+
+            map.addLayer(markers);
+
+            const validDevices = filteredResults.filter(d => d.lat && d.lon);
+            if (validDevices.length > 0) {
+                const group = new L.featureGroup(validDevices.map(d => L.marker([d.lat, d.lon])));
+                map.fitBounds(group.getBounds().pad(0.2));
+                document.getElementById('download-btn').style.display = 'block';
+                setupDownload();
+            }
+        }
+
+        // Add listeners for real-time filtering
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.filter-cb').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    updateMap(); // Re-render with existing 'results'
+                });
+            });
+        });
+
+        function renderSidebar(nodes) {
+            const list = document.getElementById('results-list');
+            list.innerHTML = '';
+
+            // Get active filters
+            const activeFilters = Array.from(document.querySelectorAll('.filter-cb:checked')).map(cb => cb.value);
+
+            const filteredNodes = nodes.filter(node => {
+                const type = node.type || 'unknown';
+                if (type === 'router' || type === 'cell_tower' || type === 'iot_device') {
+                    return activeFilters.includes(type) || activeFilters.includes('router');
+                }
+                return activeFilters.includes(type);
+            });
+
+            filteredNodes.forEach((node) => {
+                const signal = node.signal ? Math.min(Math.abs(node.signal), 100) : 50;
+                const percent = 100 - (signal > 100 ? 100 : signal);
+                const lastSeen = node.timestamp ? formatRelativeTime(node.timestamp) : 'LIVE';
+
+                const item = document.createElement('div');
+                item.className = 'node-item';
+                item.onclick = () => {
+                    // find marker by coordinates as we might have filtered
+                    const marker = markers.getLayers().find(m => m.getLatLng().lat === node.lat && m.getLatLng().lng === node.lon);
+                    if (marker) {
+                        map.setView(marker.getLatLng(), 17);
+                        marker.openPopup();
+                    }
+                };
+
+                item.innerHTML = `
+                    <div class="node-header">
+                        <span class="node-name">${escapeHtml(getBestDeviceName(node))}</span>
+                        ${node.leaked ? `<span class="node-type" style="color: #FF4444; font-weight: bold;">LEAKED</span>` : ``}
+                        ${node.loc_quality === 'approx' ? `<span class="node-type" title="Yaklaşık konum — kaynak koordinat vermedi" style="color:#FBBF24;border:1px dashed #FBBF24">≈ LOC</span>` : ``}
+                        <span class="node-type" style="background: ${getCategoryColor(node.type)}44; color: ${getCategoryColor(node.type)};">${escapeHtml(String(node.type || 'node').toUpperCase())}</span>
+                    </div>
+                    <div class="node-meta">
+                        ${node.vendor ? `VENDOR: ${escapeHtml(node.vendor)}` : `ID: ${escapeHtml(node.bssid || node.ip || 'ANONYMOUS')}`}<br>
+                        <span style="color: var(--accent-color); font-size: 9px;">LAST_SEEN: ${escapeHtml(lastSeen)}</span>
+                    </div>
+                    <div class="signal-meter">
+                        <div class="signal-strength" style="width: ${percent}%; background: ${getCategoryColor(node.type)}; box-shadow: 0 0 5px ${getCategoryColor(node.type)}"></div>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function formatRelativeTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+
+            if (diff < 60) return `${diff}s AGO`;
+            if (diff < 3600) return `${Math.floor(diff / 60)}m AGO`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}h AGO`;
+            return date.toLocaleDateString();
+        }
+
+        function getCategoryColor(type) {
+            const colors = {
+                bluetooth:  '#4A90E2',
+                ble:        '#7B61FF',
+                car:        '#FFD700',
+                camera:     '#FF4444',
+                dashcam:    '#FF6644',
+                tv:         '#A78BFA',
+                headphone:  '#4ADE80',
+                wearable:   '#6EE7B7',
+                router:     'var(--primary-color)',
+                cell_tower: '#FF00FF',
+                iot_device: '#FF8800',
+                drone:      '#FF2288',
+                tracker:    '#FF0055',
+                obd:        '#FFAA00',
+                aircraft:   '#88AAFF',
+                unknown:    '#888888'
+            };
+            return colors[type] || 'var(--primary-color)';
+        }
+
+        // Get icon based on device type.
+        // Matches the example screenshots: filled color-coded square with a clear FontAwesome glyph,
+        // glowing outline, and contrasting icon color.
+        // Konum kalitesi notu: approx = kaynak konum vermedi (arama noktasına yakın konuldu),
+        // ip = IP coğrafi konumu (şehir seviyesi, cihazın gerçek yeri değil)
+        function locNoteHtml(d) {
+            if (d.loc_quality === 'approx') return `<div style="margin:5px 0;padding:4px 6px;border:1px dashed #FBBF24;border-radius:4px;color:#FBBF24;font-size:10px">≈ YAKLAŞIK KONUM — kaynak koordinat vermedi, arama noktasının yakınına konuldu</div>`;
+            if (d.loc_quality === 'ip') return `<div style="margin:5px 0;color:#94A3B8;font-size:10px">IP konumu (şehir seviyesi) — gerçek cihaz yeri olmayabilir</div>`;
+            return '';
+        }
+
+        function getDeviceIcon(type, leaked, approx) {
+            // Inline quadcopter drone SVG — FontAwesome Free has no drone icon.
+            const DRONE_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="4" cy="4" r="2.5" opacity="0.7"/>
+                <circle cx="20" cy="4" r="2.5" opacity="0.7"/>
+                <circle cx="4" cy="20" r="2.5" opacity="0.7"/>
+                <circle cx="20" cy="20" r="2.5" opacity="0.7"/>
+                <path d="M5.5 5.5 L10 10 M18.5 5.5 L14 10 M5.5 18.5 L10 14 M18.5 18.5 L14 14" stroke="currentColor" stroke-width="1.3" fill="none"/>
+                <rect x="9" y="9" width="6" height="6" rx="1"/>
+            </svg>`;
+
+            const icons = {
+                router:      'fas fa-wifi',
+                cell_tower:  'fas fa-broadcast-tower',
+                camera:      'fas fa-video',
+                dashcam:     'fas fa-car-crash',
+                car:         'fas fa-car',
+                tv:          'fas fa-tv',
+                headphone:   'fas fa-headphones',
+                tracker:     'fas fa-tag',
+                drone:       '__SVG_DRONE__',
+                obd:         'fas fa-plug',
+                iot_device:  'fas fa-microchip',
+                iot:         'fas fa-microchip',
+                bluetooth:   'fab fa-bluetooth-b',
+                ble:         'fab fa-bluetooth-b',
+                aircraft:    'fas fa-plane',
+                satellite:   'fas fa-satellite',
+                vehicle:     'fas fa-car',
+                laptop:      'fas fa-laptop',
+                phone:       'fas fa-mobile-alt',
+                printer:     'fas fa-print',
+                speaker:     'fas fa-volume-up',
+                default:     'fas fa-question'
+            };
+            const iconClass = icons[type] || icons.default;
+
+            // Category color palette — matches screenshot aesthetic
+            const palette = {
+                car:        '#FACC15',
+                vehicle:    '#FACC15',
+                tv:         '#4ADE80',
+                camera:     '#EF4444',
+                dashcam:    '#F97316',
+                headphone:  '#22D3EE',
+                speaker:    '#22D3EE',
+                tracker:    '#FB7185',
+                drone:      '#A78BFA',
+                cell_tower: '#C084FC',
+                router:     '#60A5FA',
+                iot_device: '#FBBF24',
+                iot:        '#FBBF24',
+                obd:        '#FB923C',
+                bluetooth:  '#3B82F6',
+                ble:        '#3B82F6',
+                aircraft:   '#38BDF8',
+                satellite:  '#E879F9',
+                laptop:     '#94A3B8',
+                phone:      '#A3E635',
+                printer:    '#D4D4D8',
+                default:    '#9896AE',
+            };
+            let color = palette[type] || palette.default;
+            if (leaked) color = '#EF4444';
+
+            const size = 32;
+            const glyph = iconClass === '__SVG_DRONE__'
+                ? `<span style="color:${color};display:flex;align-items:center">${DRONE_SVG}</span>`
+                : `<i class="${iconClass}" style="color:${color};font-size:15px"></i>`;
+            const html = `
+                <div style="
+                    width:${size}px;height:${size}px;
+                    background:${color}22;
+                    border:2px ${approx ? 'dashed' : 'solid'} ${color};
+                    border-radius:6px;
+                    display:flex;align-items:center;justify-content:center;
+                    box-shadow:${approx ? 'none' : `0 0 10px ${color}99, inset 0 0 6px ${color}33`};
+                    opacity:${approx ? 0.55 : 1};
+                    position:relative;
+                ">${glyph}${approx ? `<span style="position:absolute;top:-7px;right:-7px;background:#FBBF24;color:#000;font:700 9px/14px monospace;width:14px;height:14px;border-radius:50%;text-align:center">≈</span>` : ''}</div>`;
+            return L.divIcon({
+                html: html,
+                className: 'custom-icon',
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2],
+                popupAnchor: [0, -size/2]
+            });
+        }
+
+        // Setup download button
+        let _downloadUrl = null;
+        function setupDownload() {
+            const btn = document.getElementById('download-btn');
+            const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+            if (_downloadUrl) { try { URL.revokeObjectURL(_downloadUrl); } catch (e) {} }
+            _downloadUrl = URL.createObjectURL(blob);
+            btn.href = _downloadUrl;
+            btn.download = 'wifi-search-results.json';
+        }
+
+        // Show toast notification
+        let _toastTimer = null;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            if (_toastTimer) clearTimeout(_toastTimer);
+            _toastTimer = setTimeout(() => {
+                toast.style.display = 'none';
+                _toastTimer = null;
+            }, 3000);
+        }
+
+        // Dummy content loader for sidebar (placeholder)
+        function loadContent(page) {
+            console.log(`Loading ${page}`);
+        }
+
+        // Initialize map on load
+        window.onload = initMap;
+    </script>
+
+    <!-- ==== ADD THIS RIGHT BEFORE </body> (still inside <body>) ==== -->
+    <div class="fab-container">
+        <button id="chat-fab" class="fab-btn" aria-label="Open AI Chat">
+            <i class="fas fa-comment-dots"></i>
+        </button>
+    </div>
+    <!-- ==== END FAB ==== -->
+    <!-- ==== ADD THIS RIGHT AFTER the FAB (still before </body>) ==== -->
+    <div id="chat-modal" class="chat-modal" aria-hidden="true">
+        <div class="chat-header">
+            <span>SignalOps AI Assistant</span>
+            <button id="close-chat" class="chat-close" aria-label="Close">×</button>
+        </div>
+        <div id="chat-messages" class="chat-messages"></div>
+        <!-- ADD THIS BEFORE <div class="chat-input-area"> -->
+        <div class="web-search-toggle">
+            <label>
+                <input type="checkbox" id="web-search-enabled">
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">Web Search</span>
+        </div>
+        <!-- END ADD -->
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Ask me anything…" autocomplete="off">
+            <button id="chat-send" aria-label="Send">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+    <!-- ==== END CHAT MODAL ==== -->
+    <style>
+        .web-search-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #9BCBB2;
+            user-select: none;
+        }
+
+        .web-search-toggle input {
+            display: none;
+        }
+
+        .toggle-slider {
+            position: relative;
+            width: 34px;
+            height: 18px;
+            background: rgba(138, 122, 184, 0.25);
+            border: 1px solid #9BCBB2;
+            border-radius: 18px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .toggle-slider::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: #9BCBB2;
+            border-radius: 50%;
+            top: 1px;
+            left: 1px;
+            transition: 0.3s;
+        }
+
+        #web-search-enabled:checked+.toggle-slider {
+            background: #9BCBB2;
+        }
+
+        #web-search-enabled:checked+.toggle-slider::after {
+            background: #130D22;
+            transform: translateX(16px);
+        }
+
+        .toggle-label {
+            font-weight: 600;
+        }
+
+        /* ==== CHAT POPUP STYLES ==== */
+        .chat-modal {
+            position: fixed;
+            bottom: 90px;
+            right: 24px;
+            width: 380px;
+            height: 520px;
+            max-width: 90vw;
+            background: rgba(8, 14, 10, 0.95);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+            transform: scale(0);
+            transform-origin: bottom right;
+            transition: 0.3s;
+            z-index: 1300;
+        }
+
+        .chat-modal.open {
+            transform: scale(1);
+        }
+
+        .chat-header {
+            background: rgba(138, 122, 184, 0.1);
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--primary-color);
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 2px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: rgba(138, 122, 184, 0.14);
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .message.bot {
+            align-self: flex-start;
+            background: rgba(0, 163, 255, 0.1);
+            border: 1px solid var(--secondary-color);
+            color: var(--secondary-color);
+        }
+
+        .chat-input-area {
+            display: flex;
+            border-top: 1px solid var(--border-color);
+            background: rgba(8, 8, 12, 0.5);
+        }
+
+        #chat-input {
+            flex: 1;
+            padding: 15px;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: var(--font-main);
+        }
+
+        #chat-input:focus {
+            outline: none;
+        }
+
+        #chat-send {
+            background: transparent;
+            border: none;
+            color: var(--primary-color);
+            width: 50px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        #chat-send:hover {
+            transform: scale(1.2);
+            text-shadow: var(--neon-glow);
+        }
+
+        .fab-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(ellipse at 20% 20%, rgba(36, 36, 40, 0.14) 0%, var(--bg-dark) 60%);
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: var(--neon-glow);
+            transition: 0.3s;
+        }
+
+        .fab-btn:hover {
+            transform: scale(1.1) rotate(15deg);
+            box-shadow: 0 0 25px var(--primary-color);
+        }
+
+        /* Decorative grid must not swallow taps (it covered the chat FAB) — no visual change */
+        .bg-grid { pointer-events: none; }
+
+        /* ══ Responsive (mobile/tablet only; desktop >900px unchanged) ══ */
+        @media (max-width: 900px) {
+            .main-content { padding: 12px; }
+            .surveillance-grid { grid-template-columns: minmax(0, 1fr); height: auto; gap: 14px; }
+            .surveillance-grid > * { min-width: 0; }
+            .map-container { order: 1; height: 60vh; min-height: 360px; }
+            .results-sidebar { order: 2; height: auto; min-height: 160px; max-height: 75vh; }
+            .results-sidebar, #gemini-analysis-panel { overflow-wrap: anywhere; }
+            #search-input { min-width: 0; }
+            #search-btn, #mylocation-btn { min-height: 40px; }
+            /* Data-layers panel: compact + collapsible (tap header) */
+            .layer-panel { top: 10px; right: 50px; min-width: 0; max-width: calc(100% - 110px); }
+            .layer-panel-hdr { cursor: pointer; padding: 8px 12px; font-size: 11px; letter-spacing: 1.5px; white-space: nowrap; }
+            .layer-panel-hdr::after { content: '\25BE'; margin-left: auto; padding-left: 6px; transition: transform .2s; }
+            .layer-panel:not(.expanded) .layer-panel-hdr { border-bottom: none; }
+            .layer-panel:not(.expanded) .layer-panel-hdr::after { transform: rotate(-90deg); }
+            .layer-panel:not(.expanded) .layer-row { display: none; }
+            .layer-row { padding: 9px 12px; min-height: 36px; }
+            .layer-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+            /* AI chat popup fits inside the viewport */
+            .chat-modal { right: 12px; left: auto; width: min(380px, calc(100vw - 24px)); max-width: calc(100vw - 24px);
+                          height: min(520px, calc(100vh - 120px)); height: min(520px, calc(100dvh - 120px)); bottom: 84px; }
+            .toast { left: 12px; right: 12px; bottom: 16px; text-align: center; }
+        }
+        @media (max-width: 600px) {
+            .page-header h1 { font-size: 18px; letter-spacing: 2px; margin-bottom: 6px; }
+            .page-header p { font-size: 10px; letter-spacing: 1.5px; margin-bottom: 16px; }
+            #search-type, #search-input { width: 100%; display: block; margin: 0 0 8px; }
+            #search-btn, #mylocation-btn { width: calc(50% - 8px); margin: 0 !important; padding-left: 8px !important; padding-right: 8px !important; white-space: nowrap; vertical-align: top; }
+            /* Filter chips: single horizontally scrollable row */
+            .filter-row { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 14px;
+                          -webkit-overflow-scrolling: touch; scrollbar-width: thin; padding: 10px 8px; }
+            .cyber-check { flex-shrink: 0; white-space: nowrap; min-height: 32px; }
+            .chat-modal { right: 12px; left: 12px; width: auto; max-width: none; }
+            .chat-header { padding: 12px; }
+        }
+    </style>
+    <script>
+        /* ==== CHAT POPUP LOGIC ==== */
+        const fabBtn = document.getElementById('chat-fab');
+        const modal = document.getElementById('chat-modal');
+        const closeBtn = document.getElementById('close-chat');
+        const input = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('chat-send');
+        const messages = document.getElementById('chat-messages');
+
+        // Conversation history kept in memory — persists for the session
+        let chatHistory = [];
+
+        function openChat() { modal.classList.add('open'); input.focus(); }
+        function closeChat() { modal.classList.remove('open'); input.value = ''; }
+        fabBtn.addEventListener('click', openChat);
+        closeBtn.addEventListener('click', closeChat);
+        modal.addEventListener('click', e => { if (e.target === modal) closeChat(); });
+
+        function addMessage(text, type) {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            if (type === 'bot' && text === 'typing') {
+                div.innerHTML = `<span class="typing"></span><span class="typing"></span><span class="typing"></span>`;
+            } else if (type === 'bot') {
+                // Basic markdown: bold, code, line breaks
+                const html = String(text)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/`([^`]+)`/g, '<code style="background:rgba(139,92,246,0.15);padding:1px 5px;border-radius:3px;font-size:11px">$1</code>')
+                    .replace(/\n/g, '<br>');
+                div.innerHTML = html;
+            } else {
+                div.textContent = text;
+            }
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        // Build map context from current scan state (if available globally)
+        function buildMapContext() {
+            try {
+                // These globals are set by the map scan code
+                if (typeof window.lastScanDevices === 'undefined') return {};
+                const devices = window.lastScanDevices || [];
+                const ctx = { total: devices.length };
+                const loc = window.lastScanCoords;
+                if (loc) ctx.location = `${loc.lat.toFixed(4)}, ${loc.lon.toFixed(4)}`;
+                devices.forEach(d => {
+                    const t = d.type || 'unknown';
+                    if (t === 'router')      ctx.wifi     = (ctx.wifi||0) + 1;
+                    else if (t === 'camera') ctx.camera   = (ctx.camera||0) + 1;
+                    else if (t === 'cell_tower') ctx.cell = (ctx.cell||0) + 1;
+                    else if (t === 'drone' || t === 'aircraft') ctx.drone = (ctx.drone||0) + 1;
+                    else if (t === 'bluetooth' || t === 'ble') ctx.bt = (ctx.bt||0) + 1;
+                    else                     ctx.iot      = (ctx.iot||0) + 1;
+                    if ((d.risk || 0) >= 70) ctx.high_risk = (ctx.high_risk||0) + 1;
+                    if (d.wpasec_hit)        ctx.cracked   = (ctx.cracked||0) + 1;
+                });
+                return ctx;
+            } catch(e) { return {}; }
+        }
+
+        /* ==== SEND MESSAGE → FLASK /api/chat ==== */
+        async function sendMessage() {
+            const userText = input.value.trim();
+            if (!userText) return;
+
+            addMessage(userText, 'user');
+            input.value = '';
+            sendBtn.disabled = true;
+
+            // Add to history as user turn
+            chatHistory.push({ role: 'user', content: userText });
+
+            // Show typing indicator
+            addMessage('typing', 'bot');
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: userText,
+                        history: chatHistory.slice(-14),   // last 7 exchanges
+                        map_context: buildMapContext()
+                    })
+                });
+                const data = await res.json();
+                const reply = data.reply || (data.error ? '' + data.error : 'Yanıt alınamadı.');
+
+                messages.lastElementChild.remove(); // remove typing
+                addMessage(reply, 'bot');
+
+                // Add bot reply to history
+                chatHistory.push({ role: 'model', content: reply });
+
+                // Keep history bounded to 30 turns
+                if (chatHistory.length > 30) chatHistory = chatHistory.slice(-30);
+
+            } catch (err) {
+                messages.lastElementChild.remove();
+                addMessage('Bağlantı hatası — tekrar dene.', 'bot');
+                console.error(err);
+                // Remove the failed user message from history
+                chatHistory.pop();
+            } finally {
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) sendMessage(); });
+
+        /* Close with ESC */
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && modal.classList.contains('open')) closeChat();
+        });
+
+        /* ==== RESPONSIVE: layer panel toggle + map resize ==== */
+        (function () {
+            var hdr = document.querySelector('#layer-panel .layer-panel-hdr');
+            if (hdr) hdr.addEventListener('click', function () {
+                document.getElementById('layer-panel').classList.toggle('expanded');
+            });
+            var t = null;
+            function fixMap() {
+                clearTimeout(t);
+                t = setTimeout(function () {
+                    try { if (typeof map !== 'undefined' && map && map.invalidateSize) map.invalidateSize(); } catch (e) {}
+                }, 150);
+            }
+            window.addEventListener('resize', fixMap);
+            window.addEventListener('orientationchange', fixMap);
+            window.addEventListener('load', fixMap);
+        })();
+    </script>
+    <!-- ==== SYNTAX HIGHLIGHTING ==== -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('pre code').forEach(hljs.highlightElement);
+        });
+    </script>
+    <!-- ==== END HIGHLIGHT ==== -->
+</body>
+
+</html>

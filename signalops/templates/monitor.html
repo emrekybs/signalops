@@ -1,0 +1,625 @@
+{% extends "base.html" %}
+{% block title %}Area Monitor — SignalOps{% endblock %}
+{% block extra_style %}
+.mon-grid{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:16px;align-items:start}
+.mon-col{display:flex;flex-direction:column;min-width:0}
+.mon-col>.card{margin-bottom:16px}
+@media (max-width:900px){.mon-grid{grid-template-columns:minmax(0,1fr)}}
+.card-hdr{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.card-hdr .section-hdr{font-size:13px;margin-bottom:0}
+.hint{font-size:11px;color:var(--td);line-height:1.7}
+.hint b{color:var(--t);font-weight:500}
+.muted{color:var(--tm)}
+.btn-sm{font-size:11px;padding:6px 10px;letter-spacing:1px}
+.btn:disabled{opacity:.5;cursor:default}
+.btn-d{background:rgba(199, 123, 123,0.08);color:var(--danger);border-color:rgba(199, 123, 123,0.28)}
+.btn-d:hover{background:rgba(199, 123, 123,0.18)}
+
+/* monitor list */
+.mon-list{display:flex;flex-direction:column;gap:8px}
+.mon-item{border:1px solid var(--b);border-radius:7px;padding:11px 12px;background:rgba(255,255,255,0.012);cursor:pointer;transition:border-color .15s,background .15s}
+.mon-item:hover{border-color:rgba(138, 122, 184,0.25)}
+.mon-item.sel{border-color:rgba(138, 122, 184,0.55);background:rgba(138, 122, 184,0.06)}
+.mon-item.off{opacity:.62}
+.mon-top{display:flex;align-items:center;gap:8px;min-width:0}
+.mon-name{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:var(--t);flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mon-meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;align-items:center}
+.mon-status{font-size:10px;color:var(--td);margin-top:7px;line-height:1.6;word-break:break-word}
+.mon-status .err{color:var(--danger)}
+.mon-actions{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.empty{color:var(--tm);font-size:12px;padding:18px 0;text-align:center;line-height:1.7}
+
+/* switch */
+.sw{position:relative;display:inline-block;width:34px;height:18px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0;position:absolute}
+.sw span{position:absolute;inset:0;background:var(--e);border:1px solid rgba(255,255,255,0.12);border-radius:10px;transition:.2s;cursor:pointer}
+.sw span::before{content:'';position:absolute;width:12px;height:12px;left:2px;top:2px;border-radius:50%;background:var(--td);transition:.2s}
+.sw input:checked+span{background:rgba(116, 176, 149,0.18);border-color:rgba(116, 176, 149,0.45)}
+.sw input:checked+span::before{transform:translateX(16px);background:var(--g)}
+.sw input:focus-visible+span{box-shadow:0 0 0 3px rgba(138, 122, 184,0.3)}
+
+/* map */
+.map-wrap{position:relative;height:520px;border-radius:7px;overflow:hidden;border:1px solid var(--b)}
+#mon-map{width:100%;height:100%;background:#0C0C10}
+@media (max-width:900px){.map-wrap{height:50vh}}
+.draw-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.draw-info{font-size:11px;color:var(--td);margin-left:auto}
+.draw-info.bad{color:var(--danger)}
+.map-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:500;background:rgba(11, 11, 15,0.92);
+  border:1px solid rgba(138, 122, 184,0.4);border-radius:6px;padding:6px 12px;font-size:11px;color:var(--pl);display:none;
+  pointer-events:none;max-width:calc(100% - 20px);text-align:center}
+.map-banner.on{display:block}
+.drawing #mon-map{cursor:crosshair}
+.leaflet-control-attribution{background:rgba(8,11,9,0.7)!important;color:var(--tm)!important;font-size:9px!important}
+.leaflet-control-attribution a{color:var(--td)!important}
+.mon-tip{background:rgba(11, 11, 15,0.92);color:var(--t);border:1px solid rgba(138, 122, 184,0.4);font-family:'JetBrains Mono',monospace;font-size:11px}
+.mon-tip::before{display:none}
+
+/* form */
+.f-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.f-grid .full{grid-column:1/-1}
+@media (max-width:600px){.f-grid{grid-template-columns:minmax(0,1fr)}}
+.f-lbl{display:block;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--tm);
+  text-transform:uppercase;margin-bottom:5px}
+.chk-row{display:flex;flex-wrap:wrap;gap:6px 16px}
+.chk{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--td);cursor:pointer;user-select:none}
+.chk input{width:auto;accent-color:var(--p);margin:0}
+.chk.dis{opacity:.5}
+.f-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.f-msg{font-size:11px;min-height:16px}
+.f-msg.ok{color:var(--g)}.f-msg.err{color:var(--danger)}
+.edit-tag{font-size:10px;color:var(--pl);letter-spacing:1px}
+
+/* notification channels */
+.ch-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.03);flex-wrap:wrap}
+.ch-row:last-of-type{border-bottom:none}
+.ch-name{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:600;color:var(--t);flex:1;min-width:90px}
+.ch-msg{flex-basis:100%;font-size:10px;display:none}
+.ch-msg.ok{color:var(--g);display:block}.ch-msg.err{color:var(--danger);display:block}.ch-msg.info{color:var(--td);display:block}
+
+/* events */
+.ev-list{display:flex;flex-direction:column}
+.ev{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:start;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.ev:last-child{border-bottom:none}
+.ev-time{font-size:11px;color:var(--t);white-space:nowrap}
+.ev-time small{display:block;color:var(--tm);font-size:9px;margin-top:2px}
+.ev-body{min-width:0}
+.ev-badges{display:flex;flex-wrap:wrap;gap:4px}
+.ev-top{font-size:10px;color:var(--td);margin-top:6px;line-height:1.6}
+.ev-top div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev-side{text-align:right;font-size:11px;white-space:nowrap}
+.ev-side a{color:var(--pl);text-decoration:none;display:inline-block;margin-top:4px}
+.ev-side a:hover{text-decoration:underline}
+.n-ok{color:var(--g)}.n-no{color:var(--tm)}
+@media (max-width:600px){.ev{grid-template-columns:minmax(0,1fr) auto}.ev-time{grid-column:1/-1}}
+{% endblock %}
+
+{% block content %}
+<div class="section-hdr">Area Monitor</div>
+
+<div class="mon-grid">
+  <!-- LEFT: monitors + channels -->
+  <div class="mon-col">
+    <div class="card">
+      <div class="card-hdr">
+        <div class="section-hdr">Monitors</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" id="btn-reload" type="button">↻</button>
+          <button class="btn btn-p btn-sm" id="btn-new" type="button">+ New</button>
+        </div>
+      </div>
+      <div id="mon-list" class="mon-list"><div class="empty">Loading…</div></div>
+      <div class="hint" style="margin-top:12px;border-top:1px solid var(--b);padding-top:10px">
+        <b>Quota:</b> each run consumes the same API quota as a manual scan (WiGLE, OpenCellID, Shodan …).
+        <span class="muted">15 dk aralık = günde 96 tarama.</span>
+        <span id="sched-note"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><div class="section-hdr">Notifications</div>
+        <a href="/settings" class="btn btn-outline btn-sm" style="text-decoration:none">Settings</a></div>
+      <div class="ch-row">
+        <span class="ch-name">Webhook</span>
+        <span class="badge" id="ch-wh-badge">…</span>
+        <button class="btn btn-outline btn-sm" type="button" data-test="webhook" disabled>Send test</button>
+        <div class="ch-msg" id="ch-wh-msg"></div>
+      </div>
+      <div class="hint" style="margin-top:8px">Anahtarlar Settings → Notifications bölümünden girilir.</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: map, editor, events -->
+  <div class="mon-col">
+    <div class="card" id="map-card">
+      <div class="draw-bar">
+        <button class="btn btn-g btn-sm" id="btn-draw" type="button"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg> Draw area</button>
+        <button class="btn btn-outline btn-sm" id="btn-undo" type="button" disabled>Undo point</button>
+        <button class="btn btn-outline btn-sm" id="btn-finish" type="button" disabled>Finish</button>
+        <button class="btn btn-outline btn-sm" id="btn-clear" type="button" disabled>Clear</button>
+        <span class="draw-info" id="draw-info">No area drawn</span>
+      </div>
+      <div class="map-wrap">
+        <div id="mon-map"></div>
+        <div class="map-banner" id="map-banner">Haritaya tıklayarak köşe ekle · en az 3 nokta · max 50×50 km</div>
+      </div>
+    </div>
+
+    <div class="card" id="editor">
+      <div class="card-hdr">
+        <div class="section-hdr" id="ed-title">New monitor</div>
+        <span class="edit-tag" id="ed-tag"></span>
+      </div>
+      <form id="mon-form" autocomplete="off" novalidate>
+        <div class="f-grid">
+          <div class="full">
+            <label class="f-lbl" for="f-name">Name</label>
+            <input id="f-name" maxlength="100" placeholder="e.g. Harbour gate">
+          </div>
+          <div>
+            <label class="f-lbl" for="f-kind">Scan type</label>
+            <select id="f-kind">
+              <option value="nearby">Nearby (WiFi/BT/cell/IoT)</option>
+              <option value="cell">Cell towers</option>
+              <option value="cctv">CCTV / cameras</option>
+              <option value="adsb">ADS-B aircraft</option>
+            </select>
+          </div>
+          <div>
+            <label class="f-lbl" for="f-interval">Interval</label>
+            <select id="f-interval">
+              <option value="15">15 min</option>
+              <option value="30">30 min</option>
+              <option value="60" selected>1 hour</option>
+              <option value="180">3 hours</option>
+              <option value="360">6 hours</option>
+              <option value="720">12 hours</option>
+              <option value="1440">24 hours</option>
+            </select>
+          </div>
+          <div>
+            <label class="f-lbl" for="f-case">Case (optional)</label>
+            <select id="f-case"><option value="">— none —</option></select>
+            <div class="hint muted" id="case-hint" style="display:none;margin-top:4px">Cases module not available.</div>
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <label class="chk"><input type="checkbox" id="f-enabled" checked> Enabled</label>
+          </div>
+          <div class="full">
+            <span class="f-lbl">Notify via</span>
+            <div class="chk-row">
+              <label class="chk" id="lbl-wh"><input type="checkbox" id="n-webhook"> Webhook</label>
+            </div>
+          </div>
+          <div class="full">
+            <span class="f-lbl">Notify when</span>
+            <div class="chk-row">
+              <label class="chk"><input type="checkbox" id="n-on_watchlist" checked> Watchlist hit</label>
+              <label class="chk"><input type="checkbox" id="n-on_new" checked> New devices</label>
+              <label class="chk"><input type="checkbox" id="n-on_gone"> Gone devices</label>
+              <label class="chk"><input type="checkbox" id="n-on_changed"> Changed devices</label>
+              <label class="chk"><input type="checkbox" id="n-quiet_baseline" checked> Quiet baseline</label>
+            </div>
+            <div class="hint muted" style="margin-top:4px">Quiet baseline: ilk (temel) çalıştırmada değişiklik bildirimi yok; watchlist isabeti yine bildirilir.</div>
+          </div>
+          <div>
+            <label class="f-lbl" for="n-min_risk">Min risk (new / changed)</label>
+            <input id="n-min_risk" type="number" min="0" max="100" step="1" value="0">
+          </div>
+        </div>
+        <div class="f-actions">
+          <button class="btn btn-p" type="submit" id="btn-save">Save</button>
+          <button class="btn btn-outline" type="button" id="btn-cancel">Reset</button>
+          <span class="f-msg" id="f-msg"></span>
+        </div>
+      </form>
+    </div>
+
+    <div class="card" id="events-card">
+      <div class="card-hdr">
+        <div class="section-hdr" id="ev-title">Events</div>
+        <button class="btn btn-outline btn-sm" id="btn-ev-reload" type="button" disabled>↻</button>
+      </div>
+      <div id="ev-list" class="ev-list"><div class="empty">Select a monitor to see its run history.</div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+'use strict';
+var MAX_KM = 50;
+var KIND_LABEL = {nearby:'NEARBY', cell:'CELL', cctv:'CCTV', adsb:'ADS-B'};
+var NOTIFY_KEYS = ['webhook','on_watchlist','on_new','on_gone','on_changed','quiet_baseline'];
+var $ = function(id){ return document.getElementById(id); };
+
+var state = {
+  monitors: [], selected: null, editing: null,
+  draft: [], drawing: false, finished: false, polyChanged: false,
+  keys: {webhook:false}, pollTimer: null
+};
+
+// ── helpers ──
+function api(method, url, body){
+  var opt = {method: method, headers: {}};
+  if (body !== undefined){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+  return fetch(url, opt).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(j){ return {status: r.status, ok: r.ok, data: j}; });
+  });
+}
+function fmtInterval(m){ m = +m; return m >= 60 ? (m % 60 ? m + 'm' : (m/60) + 'h') : m + 'm'; }
+function fmtTime(ts){
+  if (!ts) return '—';
+  var d = new Date(ts * 1000);
+  return d.toLocaleString(undefined, {month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+}
+function rel(ts){
+  if (!ts) return '';
+  var s = Math.round(Date.now()/1000 - ts), a = Math.abs(s), u;
+  if (a < 60) u = a + 's'; else if (a < 3600) u = Math.round(a/60) + 'm';
+  else if (a < 86400) u = Math.round(a/3600) + 'h'; else u = Math.round(a/86400) + 'd';
+  return s >= 0 ? u + ' ago' : 'in ' + u;
+}
+function bboxKm(pts){
+  if (!pts.length) return [0,0];
+  var la = pts.map(function(p){return p[0];}), lo = pts.map(function(p){return p[1];});
+  var mid = (Math.min.apply(null,la) + Math.max.apply(null,la)) / 2 * Math.PI / 180;
+  return [(Math.max.apply(null,lo) - Math.min.apply(null,lo)) * 111.32 * Math.max(0.01, Math.cos(mid)),
+          (Math.max.apply(null,la) - Math.min.apply(null,la)) * 111.32];
+}
+function summaryBadges(s){
+  if (!s) return '<span class="muted" style="font-size:10px">no runs yet</span>';
+  var h = '';
+  if (s.baseline) h += '<span class="badge badge-info">BASELINE</span>';
+  h += '<span class="badge badge-info">' + esc(s.devices || 0) + ' DEV</span>';
+  if (!s.baseline){
+    h += '<span class="badge ' + (s.new ? 'badge-warn' : 'badge-info') + '">+' + esc(s.new || 0) + ' NEW</span>';
+    h += '<span class="badge badge-info">−' + esc(s.gone || 0) + ' GONE</span>';
+    h += '<span class="badge ' + (s.changed ? 'badge-warn' : 'badge-info') + '">~' + esc(s.changed || 0) + ' CHG</span>';
+  }
+  if (s.watchlist_hits) h += '<span class="badge badge-err">' + esc(s.watchlist_hits) + ' WATCHLIST</span>';
+  if (s.high_risk_new) h += '<span class="badge badge-err">' + esc(s.high_risk_new) + ' HIGH RISK</span>';
+  return h;
+}
+
+// ── map ──
+var map = L.map('mon-map', {zoomControl: true}).setView([41.015, 28.979], 11);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap · CARTO', subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+var monLayer = L.layerGroup().addTo(map);
+var draftLayer = L.layerGroup().addTo(map);
+var fitted = false;
+
+function drawMonitors(){
+  monLayer.clearLayers();
+  var all = [];
+  state.monitors.forEach(function(m){
+    if (!Array.isArray(m.polygon) || m.polygon.length < 3) return;
+    if (state.editing === m.id && (state.drawing || state.draft.length)) return; // editörde gösteriliyor
+    var sel = state.selected === m.id;
+    var pg = L.polygon(m.polygon, {
+      color: sel ? '#A78BFA' : (m.enabled ? '#4ADE80' : '#6B7280'), weight: sel ? 2.5 : 1.5,
+      fillOpacity: sel ? 0.16 : 0.07, dashArray: m.enabled ? null : '4 4'
+    });
+    pg.bindTooltip(esc(m.name), {className: 'mon-tip', sticky: true});
+    pg.on('click', function(e){ if (state.drawing) return; L.DomEvent.stopPropagation(e); selectMonitor(m.id); });
+    pg.addTo(monLayer);
+    all = all.concat(m.polygon);
+  });
+  if (!fitted && all.length){ fitted = true; map.fitBounds(L.latLngBounds(all).pad(0.25)); }
+}
+
+function renderDraft(){
+  draftLayer.clearLayers();
+  var pts = state.draft;
+  if (pts.length >= 3 && state.finished){
+    L.polygon(pts, {color:'#FBBF24', weight:2, fillOpacity:0.12}).addTo(draftLayer);
+  } else if (pts.length >= 2){
+    L.polyline(pts, {color:'#FBBF24', weight:2, dashArray:'5 5'}).addTo(draftLayer);
+    if (pts.length >= 3) L.polygon(pts, {stroke:false, fillColor:'#FBBF24', fillOpacity:0.08}).addTo(draftLayer);
+  }
+  pts.forEach(function(p, i){
+    L.circleMarker(p, {radius: i === 0 ? 6 : 4, color:'#FBBF24', weight:2, fillColor:'#080E09', fillOpacity:1}).addTo(draftLayer);
+  });
+  var info = $('draw-info'), km = bboxKm(pts), big = km[0] > MAX_KM || km[1] > MAX_KM;
+  if (!pts.length) info.textContent = state.drawing ? 'Click the map to add points' : 'No area drawn';
+  else info.textContent = pts.length + ' pts · ' + km[0].toFixed(1) + '×' + km[1].toFixed(1) + ' km' +
+    (big ? ' — too large (max 50×50)' : (state.finished ? ' · ready' : ''));
+  info.classList.toggle('bad', big);
+  $('btn-undo').disabled = !state.drawing || !pts.length;
+  $('btn-finish').disabled = !state.drawing || pts.length < 3;
+  $('btn-clear').disabled = !pts.length && !state.drawing;
+  $('btn-draw').textContent = state.drawing ? 'Drawing…' : (pts.length ? 'Redraw area' : 'Draw area');
+  $('btn-draw').disabled = state.drawing;
+  $('map-card').classList.toggle('drawing', state.drawing);
+  $('map-banner').classList.toggle('on', state.drawing);
+}
+
+map.on('click', function(e){
+  if (!state.drawing) return;
+  if (state.draft.length >= 100){ setMsg('Max 100 points', 'err'); return; }
+  state.draft.push([+e.latlng.lat.toFixed(6), +e.latlng.lng.toFixed(6)]);
+  state.polyChanged = true;
+  renderDraft();
+});
+$('btn-draw').addEventListener('click', function(){
+  state.drawing = true; state.finished = false; state.draft = []; state.polyChanged = true;
+  map.doubleClickZoom.disable();
+  drawMonitors(); renderDraft();
+});
+$('btn-undo').addEventListener('click', function(){ state.draft.pop(); renderDraft(); });
+$('btn-finish').addEventListener('click', function(){
+  if (state.draft.length < 3) return;
+  state.drawing = false; state.finished = true; map.doubleClickZoom.enable(); renderDraft();
+});
+$('btn-clear').addEventListener('click', function(){
+  state.draft = []; state.drawing = false; state.finished = false; state.polyChanged = true;
+  map.doubleClickZoom.enable(); renderDraft(); drawMonitors();
+});
+
+// ── list ──
+function renderList(){
+  var box = $('mon-list');
+  if (!state.monitors.length){
+    box.innerHTML = '<div class="empty">No monitors yet.<br>Haritada bir alan çiz ve kaydet.</div>';
+    return;
+  }
+  box.innerHTML = state.monitors.map(function(m){
+    var ev = m.last_event, s = ev && ev.summary, st = m.last_status || '';
+    var isErr = /^error|fail/i.test(st);
+    var run = m.running ? '<span class="badge badge-warn">' + esc(String(m.running).toUpperCase()) + '…</span>' : '';
+    return '<div class="mon-item' + (state.selected === m.id ? ' sel' : '') + (m.enabled ? '' : ' off') + '" data-id="' + esc(m.id) + '" data-act="select">' +
+      '<div class="mon-top"><span class="mon-name" title="' + esc(m.name) + '">' + esc(m.name) + '</span>' + run +
+        '<label class="sw" title="Enabled" data-stop="1"><input type="checkbox" data-act="toggle" data-id="' + esc(m.id) + '"' + (m.enabled ? ' checked' : '') + '><span></span></label></div>' +
+      '<div class="mon-meta"><span class="badge badge-info">' + esc(KIND_LABEL[m.kind] || m.kind) + '</span>' +
+        '<span class="badge badge-info">EVERY ' + esc(fmtInterval(m.interval_min)) + '</span>' + summaryBadges(s) + '</div>' +
+      '<div class="mon-status">Last: ' + (m.last_run ? esc(fmtTime(m.last_run)) + ' <span class="muted">(' + esc(rel(m.last_run)) + ')</span>' : '<span class="muted">never</span>') +
+        (m.enabled && m.next_run ? ' · Next: <span class="muted">' + esc(m.next_run <= Date.now()/1000 ? 'due' : rel(m.next_run)) + '</span>' : '') +
+        (st ? '<br><span class="' + (isErr || /notify failed/.test(st) ? 'err' : '') + '">' + esc(st) + '</span>' : '') + '</div>' +
+      '<div class="mon-actions">' +
+        '<button class="btn btn-g btn-sm" type="button" data-act="run" data-id="' + esc(m.id) + '"' + (m.running ? ' disabled' : '') + '>▶ Run now</button>' +
+        '<button class="btn btn-outline btn-sm" type="button" data-act="edit" data-id="' + esc(m.id) + '">Edit</button>' +
+        '<button class="btn btn-d btn-sm" type="button" data-act="delete" data-id="' + esc(m.id) + '">Delete</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+function findMon(id){ return state.monitors.filter(function(m){ return m.id === id; })[0]; }
+
+$('mon-list').addEventListener('click', function(e){
+  var t = e.target.closest('[data-act]');
+  if (!t || e.target.closest('[data-stop]') && t.dataset.act !== 'toggle') return;
+  var id = parseInt(t.dataset.id, 10), act = t.dataset.act;
+  if (act === 'toggle') return; // change event handles it
+  if (act === 'select') return selectMonitor(id, true);
+  e.stopPropagation();
+  if (act === 'edit') return editMonitor(id);
+  if (act === 'run') return runNow(id, t);
+  if (act === 'delete') return deleteMonitor(id);
+});
+$('mon-list').addEventListener('change', function(e){
+  var t = e.target;
+  if (t.dataset.act !== 'toggle') return;
+  var id = parseInt(t.dataset.id, 10);
+  api('PATCH', '/api/monitors/' + id, {enabled: t.checked}).then(function(r){
+    if (!r.ok){ t.checked = !t.checked; alert(r.data.error || 'Update failed'); }
+    load();
+  });
+});
+
+function load(){
+  return api('GET', '/api/monitors').then(function(r){
+    if (!r.ok){ $('mon-list').innerHTML = '<div class="empty">' + esc(r.data.error || 'Failed to load monitors') + '</div>'; return; }
+    state.monitors = r.data.monitors || [];
+    state.scheduler = !!r.data.scheduler;
+    $('sched-note').innerHTML = r.data.scheduler ? '' : '<br><span style="color:var(--warn)">Scheduler is not running in this process — only “Run now” works.</span>';
+    if (state.selected && !findMon(state.selected)) { state.selected = null; renderEvents(null); }
+    renderList(); drawMonitors();
+    var anyRunning = state.monitors.some(function(m){ return m.running; });
+    clearTimeout(state.pollTimer);
+    state.pollTimer = setTimeout(function(){ load(); if (state.selected && anyRunning) loadEvents(); }, anyRunning ? 4000 : 30000);
+  }).catch(function(){ $('mon-list').innerHTML = '<div class="empty">Network error</div>'; });
+}
+
+function selectMonitor(id, fly){
+  state.selected = id;
+  renderList(); drawMonitors();
+  var m = findMon(id);
+  if (m && fly && Array.isArray(m.polygon)) map.fitBounds(L.latLngBounds(m.polygon).pad(0.3));
+  loadEvents();
+}
+
+function runNow(id, btn){
+  btn.disabled = true;
+  api('POST', '/api/monitors/' + id + '/run', {}).then(function(r){
+    if (!r.ok) alert(r.data.error || ('Run failed (' + r.status + ')'));
+    state.selected = id;
+    load();
+  });
+}
+function deleteMonitor(id){
+  var m = findMon(id);
+  if (!confirm('Delete monitor "' + (m ? m.name : id) + '"? Events are removed too (saved scans stay).')) return;
+  api('DELETE', '/api/monitors/' + id).then(function(r){
+    if (!r.ok) alert(r.data.error || 'Delete failed');
+    if (state.editing === id) resetForm();
+    if (state.selected === id){ state.selected = null; renderEvents(null); }
+    load();
+  });
+}
+
+// ── editor ──
+function setMsg(t, cls){ var el = $('f-msg'); el.textContent = t || ''; el.className = 'f-msg ' + (cls || ''); }
+function setNotify(n){
+  n = n || {};
+  NOTIFY_KEYS.forEach(function(k){
+    var d = {on_watchlist:true, on_new:true, quiet_baseline:true}[k] || false;
+    $('n-' + k).checked = (k in n) ? !!n[k] : d;
+  });
+  $('n-min_risk').value = n.min_risk != null ? n.min_risk : 0;
+}
+function resetForm(){
+  state.editing = null; state.draft = []; state.drawing = false; state.finished = false; state.polyChanged = false;
+  $('mon-form').reset(); $('f-interval').value = '60'; setNotify({});
+  $('ed-title').textContent = 'New monitor'; $('ed-tag').textContent = '';
+  $('btn-save').textContent = 'Save'; setMsg('');
+  map.doubleClickZoom.enable(); renderDraft(); drawMonitors();
+}
+function editMonitor(id){
+  var m = findMon(id); if (!m) return;
+  state.editing = id; state.selected = id;
+  state.draft = (m.polygon || []).map(function(p){ return [p[0], p[1]]; });
+  state.drawing = false; state.finished = true; state.polyChanged = false;
+  $('f-name').value = m.name; $('f-kind').value = m.kind; $('f-interval').value = String(m.interval_min);
+  if (!$('f-interval').value) { var o = document.createElement('option'); o.value = String(m.interval_min); o.textContent = m.interval_min + ' min'; $('f-interval').appendChild(o); $('f-interval').value = String(m.interval_min); }
+  ensureCaseOption(m.case_id);
+  $('f-case').value = m.case_id ? String(m.case_id) : '';
+  $('f-enabled').checked = !!m.enabled;
+  setNotify(m.notify);
+  $('ed-title').textContent = 'Edit monitor'; $('ed-tag').textContent = '#' + m.id;
+  $('btn-save').textContent = 'Update'; setMsg('');
+  renderList(); renderDraft(); drawMonitors(); loadEvents();
+  if (state.draft.length) map.fitBounds(L.latLngBounds(state.draft).pad(0.3));
+  if (window.innerWidth <= 900) $('editor').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function ensureCaseOption(cid){
+  if (!cid) return;
+  var sel = $('f-case');
+  if (!Array.prototype.some.call(sel.options, function(o){ return o.value === String(cid); })){
+    var o = document.createElement('option'); o.value = String(cid); o.textContent = 'Case #' + cid; sel.appendChild(o);
+  }
+}
+$('btn-new').addEventListener('click', function(){ resetForm(); $('f-name').focus(); });
+$('btn-cancel').addEventListener('click', resetForm);
+$('btn-reload').addEventListener('click', function(){ load(); loadKeys(); });
+
+$('mon-form').addEventListener('submit', function(e){
+  e.preventDefault();
+  var name = $('f-name').value.trim();
+  if (!name) return setMsg('Name is required', 'err');
+  if (state.drawing) return setMsg('Finish drawing the area first', 'err');
+  if (state.draft.length < 3) return setMsg('Draw an area with at least 3 points', 'err');
+  var km = bboxKm(state.draft);
+  if (km[0] > MAX_KM || km[1] > MAX_KM) return setMsg('Area too large — max 50×50 km', 'err');
+  var mr = parseInt($('n-min_risk').value, 10);
+  if (isNaN(mr) || mr < 0 || mr > 100) return setMsg('Min risk must be 0–100', 'err');
+  var notify = {min_risk: mr};
+  NOTIFY_KEYS.forEach(function(k){ notify[k] = $('n-' + k).checked; });
+  var body = {
+    name: name, kind: $('f-kind').value, interval_min: parseInt($('f-interval').value, 10),
+    enabled: $('f-enabled').checked, case_id: $('f-case').value ? parseInt($('f-case').value, 10) : null,
+    notify: notify
+  };
+  if (!state.editing || state.polyChanged) body.polygon = state.draft;
+  var editing = state.editing;
+  $('btn-save').disabled = true; setMsg('Saving…');
+  api(editing ? 'PATCH' : 'POST', editing ? '/api/monitors/' + editing : '/api/monitors', body).then(function(r){
+    $('btn-save').disabled = false;
+    if (!r.ok) return setMsg(r.data.error || ('Save failed (' + r.status + ')'), 'err');
+    var id = r.data.id;
+    resetForm();
+    setMsg(editing ? 'Updated' : (state.scheduler && body.enabled ? 'Saved — first (baseline) run starts within ~30 s' : 'Saved'), 'ok');
+    state.selected = id;
+    load().then(function(){ loadEvents(); });
+  }).catch(function(){ $('btn-save').disabled = false; setMsg('Network error', 'err'); });
+});
+
+// ── events ──
+function loadEvents(){
+  var id = state.selected;
+  if (!id){ renderEvents(null); return; }
+  api('GET', '/api/monitors/' + id + '/events?limit=50').then(function(r){
+    if (state.selected !== id) return;
+    renderEvents(r.ok ? (r.data.events || []) : null, r.ok ? null : (r.data.error || 'Failed'));
+  });
+}
+function renderEvents(evs, err){
+  var m = state.selected ? findMon(state.selected) : null;
+  $('ev-title').textContent = m ? 'Events · ' + m.name : 'Events';
+  $('btn-ev-reload').disabled = !m;
+  var box = $('ev-list');
+  if (!m){ box.innerHTML = '<div class="empty">Select a monitor to see its run history.</div>'; return; }
+  if (err){ box.innerHTML = '<div class="empty">' + esc(err) + '</div>'; return; }
+  if (!evs || !evs.length){ box.innerHTML = '<div class="empty">No runs yet.' + (m.running ? ' Running…' : ' Use “Run now” or wait for the schedule.') + '</div>'; return; }
+  box.innerHTML = evs.map(function(ev){
+    var s = ev.summary || {};
+    var top = Array.isArray(s.top) ? s.top.slice(0, 5) : [];
+    var extra = [];
+    if (s.skipped_approx) extra.push(s.skipped_approx + ' approx skipped');
+    if (s.outside) extra.push(s.outside + ' outside area');
+    if (Array.isArray(s.triggers) && s.triggers.length) extra.push('triggers: ' + s.triggers.join(', '));
+    return '<div class="ev">' +
+      '<div class="ev-time">' + esc(fmtTime(ev.ts)) + '<small>' + esc(rel(ev.ts)) + '</small></div>' +
+      '<div class="ev-body"><div class="ev-badges">' + summaryBadges(s) + '</div>' +
+        (top.length ? '<div class="ev-top">' + top.map(function(it){
+          return '<div title="' + esc(it.why) + '">• ' + esc(it.name) + ' <span class="muted">[' + esc(it.type || '?') + '] r' + esc(it.risk || 0) + ' — ' + esc(it.why) + '</span></div>';
+        }).join('') + '</div>' : '') +
+        (extra.length ? '<div class="ev-top muted">' + esc(extra.join(' · ')) + '</div>' : '') +
+      '</div>' +
+      '<div class="ev-side">' + (ev.notified ? '<span class="n-ok" title="Notification sent">✓ notified</span>' : '<span class="n-no" title="No notification sent">✗ not notified</span>') +
+        (ev.scan_id ? '<br><a href="/cases?scan=' + encodeURIComponent(ev.scan_id) + '">Open scan →</a>' : '') + '</div>' +
+    '</div>';
+  }).join('');
+}
+$('btn-ev-reload').addEventListener('click', loadEvents);
+
+// ── cases (module built separately — may 404) ──
+function loadCases(){
+  api('GET', '/api/cases').then(function(r){
+    var list = r.ok ? (Array.isArray(r.data) ? r.data : (r.data.cases || [])) : null;
+    if (!list){ $('case-hint').style.display = 'block'; return; }
+    var sel = $('f-case'), cur = sel.value;
+    sel.innerHTML = '<option value="">— none —</option>' + list.filter(function(c){ return c && c.id != null; }).map(function(c){
+      return '<option value="' + esc(c.id) + '">' + esc(c.name || ('Case #' + c.id)) + (c.status && c.status !== 'open' ? ' (' + esc(c.status) + ')' : '') + '</option>';
+    }).join('');
+    if (cur) { ensureCaseOption(cur); sel.value = cur; }
+  }).catch(function(){ $('case-hint').style.display = 'block'; });
+}
+
+// ── notification keys ──
+function loadKeys(){
+  api('GET', '/api/settings/keys').then(function(r){
+    var conf = {};
+    ((r.data && r.data.groups) || []).forEach(function(g){ (g.keys || []).forEach(function(k){ conf[k.id] = !!k.configured; }); });
+    state.keys.webhook = !!conf.NOTIFY_WEBHOOK_URL;
+    [['webhook','wh']].forEach(function(p){
+      var on = state.keys[p[0]], b = $('ch-' + p[1] + '-badge');
+      b.className = 'badge ' + (on ? 'badge-ok' : 'badge-warn');
+      b.textContent = on ? 'CONFIGURED' : 'NOT SET';
+      var btn = document.querySelector('[data-test="' + p[0] + '"]');
+      btn.disabled = !on;
+      btn.title = on ? '' : 'Set Webhook URL in Settings first';
+      $('lbl-' + p[1]).classList.toggle('dis', !on);
+      $('lbl-' + p[1]).title = on ? '' : 'Not configured — notifications on this channel will fail until set in Settings';
+      var msg = $('ch-' + p[1] + '-msg');
+      if (!on){ msg.className = 'ch-msg info'; msg.textContent = 'Webhook URL gerekli (http/https).'; }
+      else if (msg.classList.contains('info')) { msg.className = 'ch-msg'; msg.textContent = ''; }
+    });
+  });
+}
+document.querySelectorAll('[data-test]').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var ch = btn.dataset.test, msg = $('ch-wh-msg');
+    btn.disabled = true; msg.className = 'ch-msg info'; msg.textContent = 'Sending…';
+    api('POST', '/api/notify/test', {channel: ch}).then(function(r){
+      btn.disabled = false;
+      var ok = r.ok && r.data.ok;
+      msg.className = 'ch-msg ' + (ok ? 'ok' : 'err');
+      msg.textContent = (r.data.message || r.data.error || ('HTTP ' + r.status));
+    }).catch(function(){ btn.disabled = false; msg.className = 'ch-msg err'; msg.textContent = 'Network error'; });
+  });
+});
+
+resetForm();
+load(); loadCases(); loadKeys();
+setInterval(function(){ if (!state.monitors.some(function(m){ return m.running; })) renderList(); }, 60000);
+window.__monState = state; window.__monMap = map;
+})();
+</script>
+{% endblock %}

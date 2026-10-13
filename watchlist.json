@@ -1,0 +1,22 @@
+[
+  {
+    "id": "3b0e4ef7",
+    "type": "icao",
+    "value": "0180A6",
+    "note": "Callsign: OYA503",
+    "priority": "high",
+    "notify": "browser",
+    "hit_count": 0,
+    "created_at": 1776382405
+  },
+  {
+    "id": "24f899d6",
+    "type": "ip",
+    "value": "8.8.8.8",
+    "note": "Suspicious IoT device",
+    "priority": "high",
+    "notify": "browser",
+    "hit_count": 0,
+    "created_at": 1776382449
+  }
+]

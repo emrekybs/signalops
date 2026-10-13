@@ -1,0 +1,717 @@
+{% extends "base.html" %}
+{% block title %}Timeline — SignalOps{% endblock %}
+{% block extra_style %}
+[hidden]{display:none!important}
+.tl-top{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:12px 14px}
+.tl-f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.tl-f>label,.tl-lbl{font-size:9px;letter-spacing:2px;color:var(--td);text-transform:uppercase}
+.tl-f select,.tl-f input{padding:6px 8px;font-size:11px;width:auto}
+.tl-f.src{flex:1 1 280px}
+.tl-f.src select{width:100%}
+.tl-chk{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--td);cursor:pointer;white-space:nowrap;padding:6px 0}
+.tl-chk input{width:auto;accent-color:var(--p)}
+.tl-btn{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;
+  border-radius:6px;padding:5px 11px;background:transparent;color:var(--td);border:1px solid rgba(255,255,255,0.12);
+  text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;line-height:1.3}
+.tl-btn:hover{color:var(--t);border-color:rgba(138, 122, 184,0.4)}
+.tl-btn:disabled{opacity:.4;cursor:not-allowed}
+.tl-btn.p{color:var(--pl);border-color:rgba(138, 122, 184,0.35);background:rgba(138, 122, 184,0.08)}
+.tl-btn.on{color:#fff;background:var(--p);border-color:var(--p)}
+.tl-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline;margin:2px 2px 10px}
+.tl-h1{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:var(--t);letter-spacing:.5px;overflow-wrap:anywhere;min-width:0}
+.tl-meta{font-size:10px;color:var(--tm);letter-spacing:1px}
+.tl-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.tl-map-card{padding:0;overflow:hidden;position:relative;margin-bottom:0}
+#tl-map{height:calc(100vh - 430px);min-height:380px;background:#0E0E13}
+#tl-legend{position:absolute;right:10px;top:10px;z-index:500;background:rgba(11, 11, 15,0.88);border:1px solid var(--b);
+  border-radius:6px;padding:6px 10px;font-size:10px;color:var(--td);display:flex;gap:10px;flex-wrap:wrap;max-width:calc(100% - 70px)}
+#tl-legend span{display:inline-flex;align-items:center;gap:5px}
+.tl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;display:inline-block}
+/* Zaman çubuğu */
+.tl-bar{border-top:1px solid var(--b);background:rgba(11, 11, 15,0.96);padding:10px 14px 12px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.tl-ctl{display:flex;gap:4px;align-items:center;flex-shrink:0}
+.tl-ctl .tl-btn{min-width:34px;padding:5px 8px}
+.tl-ctl select{width:auto;padding:5px 6px;font-size:11px}
+.tl-track{flex:1 1 360px;min-width:0;position:relative;padding-bottom:16px}
+.tl-track input[type=range]{width:100%;margin:0;accent-color:var(--p);display:block;height:22px;padding:0;background:transparent;border:0}
+.tl-ticks{position:absolute;left:8px;right:8px;top:0;height:22px;pointer-events:none}
+.tl-tick{position:absolute;top:3px;width:1px;height:16px;background:rgba(180, 168, 214,0.28);transform:translateX(-0.5px)}
+.tl-tick.cur{background:#fff;width:2px}
+.tl-tick.chg{background:rgba(116, 176, 149,0.55)}
+.tl-tlbls{position:absolute;left:8px;right:8px;top:22px;height:14px;font-size:9px;color:var(--tm);letter-spacing:.5px}
+.tl-tlbls span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.tl-tlbls span.l{transform:none}.tl-tlbls span.r{transform:translateX(-100%)}
+.tl-info{flex:1 1 100%;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;font-size:11px;color:var(--td);min-width:0}
+.tl-info b{color:var(--t);font-weight:500}
+.tl-info .lbl{overflow-wrap:anywhere;min-width:0}
+.tl-pill{font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--b);white-space:nowrap}
+.tl-pill.n{color:#74B095;border-color:rgba(116, 176, 149,0.35)}
+.tl-pill.g{color:#9CA3AF;border-color:rgba(156,163,175,0.35)}
+.tl-pill.c{color:#C9A15A;border-color:rgba(201, 161, 90,0.35)}
+.tl-pill.b{color:var(--pl);border-color:rgba(138, 122, 184,0.35)}
+/* Yan liste */
+.tl-side{padding:12px;display:flex;flex-direction:column;max-height:calc(100vh - 250px);min-height:520px}
+.tl-sort{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;align-items:center}
+.tl-tab{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:3px 9px;border-radius:12px;cursor:pointer;
+  border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--td)}
+.tl-tab.active{color:#fff;background:rgba(138, 122, 184,0.35);border-color:rgba(138, 122, 184,0.6)}
+.tl-cnt{font-size:10px;color:var(--tm);margin:2px 2px 4px}
+.tl-list{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:4px;min-height:0}
+.tl-dev{display:block;width:100%;text-align:left;background:var(--e);border:1px solid transparent;border-left:3px solid #6B7280;border-radius:5px;
+  padding:6px 9px;cursor:pointer;color:var(--td);font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.5}
+.tl-dev:hover,.tl-dev.sel{border-color:rgba(138, 122, 184,0.45)}
+.tl-dev .nm{color:var(--t);font-size:12px;font-weight:500;display:flex;justify-content:space-between;gap:6px}
+.tl-dev .nm span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-dev.st-new{border-left-color:#74B095}.tl-dev.st-changed{border-left-color:#C9A15A}
+.tl-dev.st-steady{border-left-color:#8A7AB8}.tl-dev.st-gone{border-left-color:#9CA3AF;opacity:.6}
+.tl-st{font-size:9px;letter-spacing:1px}
+.tl-st.new{color:#74B095}.tl-st.changed{color:#C9A15A}.tl-st.steady{color:var(--pl)}.tl-st.gone{color:#9CA3AF}
+.tl-detail{border:1px solid rgba(138, 122, 184,0.3);background:rgba(138, 122, 184,0.06);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:10px;color:var(--td)}
+.tl-detail .nm{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:var(--t);overflow-wrap:anywhere}
+.tl-dm{font-size:10px;color:var(--td);line-height:1.5;font-family:'JetBrains Mono',monospace}
+.tl-key{font-size:10px;color:var(--tm);overflow-wrap:anywhere}
+.tl-links{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.tl-more{font-size:10px;color:var(--tm);text-align:center;padding:8px}
+/* Varlık matrisi */
+.tl-mx-card{padding:12px 14px}
+.tl-mx-wrap{position:relative;width:100%}
+#tl-mx{display:block;width:100%;cursor:pointer}
+.tl-msg{font-size:11px;color:var(--tm);padding:6px 2px}
+.tl-empty{text-align:center;padding:60px 20px;color:var(--tm)}
+.tl-empty .t{font-family:'Rajdhani',sans-serif;letter-spacing:3px}
+.tl-warn{font-size:10px;color:var(--warn);margin-top:4px}
+/* Leaflet açılır kutu */
+.tl-pop{font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.55;color:#ddd;max-width:240px}
+.tl-pop .nm{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:#fff;overflow-wrap:anywhere}
+.tl-pop .k{color:#8a8aa0;overflow-wrap:anywhere}
+#tl-map .tl-pop a{color:#C3B8E2}
+#tl-map .leaflet-popup-content-wrapper,#tl-map .leaflet-popup-tip{background:#121712;color:#ddd;border:1px solid rgba(139,92,246,0.35)}
+#tl-map .leaflet-popup-close-button{color:#9896AE}
+@media (max-width:900px){
+  .tl-grid{grid-template-columns:minmax(0,1fr)}
+  #tl-map{height:50vh;min-height:260px}
+  .tl-side{max-height:60vh;min-height:0}
+  .tl-btn{min-height:32px}
+  .tl-track{flex:1 1 100%}
+  .tl-f.src{flex:1 1 100%}
+  .tl-h1{font-size:17px}
+  #tl-legend{gap:6px 8px;font-size:9px}
+}
+{% endblock %}
+{% block content %}
+<div class="section-hdr">Timeline <span style="font-size:10px;letter-spacing:1px;color:var(--tm);text-transform:none;font-family:'JetBrains Mono',monospace;font-weight:400">· scan replay · presence over time</span></div>
+
+<div class="card tl-top" id="tl-top">
+  <div class="tl-f src">
+    <label for="tl-src">Area / case</label>
+    <select id="tl-src" aria-label="Area or case"><option value="">Loading…</option></select>
+  </div>
+  <div class="tl-f">
+    <label for="tl-type">Type</label>
+    <select id="tl-type"><option value="">All types</option></select>
+  </div>
+  <div class="tl-f">
+    <label for="tl-risk">Min risk</label>
+    <select id="tl-risk"><option value="0">Any</option><option value="20">≥ 20</option><option value="40">≥ 40</option><option value="70">≥ 70</option></select>
+  </div>
+  <div class="tl-f">
+    <label for="tl-pers">Presence</label>
+    <select id="tl-pers"><option value="all">All devices</option><option value="persistent">Persistent only</option><option value="transient">Transient only (seen once)</option></select>
+  </div>
+  <div class="tl-f" id="tl-n-wrap" hidden>
+    <label for="tl-n">Min scans (N)</label>
+    <input id="tl-n" type="number" min="2" max="500" value="3" style="width:70px">
+  </div>
+  <label class="tl-chk"><input type="checkbox" id="tl-ghosts" checked> Ghosts</label>
+  <label class="tl-chk"><input type="checkbox" id="tl-trails"> Trails</label>
+  <a class="tl-btn" href="/cases" id="tl-cases-link">← Cases</a>
+</div>
+
+<div id="tl-empty" class="card tl-empty" hidden>
+  <div class="t" id="tl-empty-t">No repeated scans yet</div>
+  <div style="font-size:11px;margin-top:8px" id="tl-empty-d">Zaman çizelgesi için aynı bölgede en az iki kayıtlı tarama gerekir (Cases → kayıtlı taramalar ya da alan izleme).</div>
+</div>
+
+<div id="tl-view" hidden>
+  <div class="tl-head">
+    <div class="tl-h1" id="tl-title">—</div>
+    <div class="tl-meta" id="tl-sub"></div>
+  </div>
+  <div class="tl-grid">
+    <div>
+      <div class="card tl-map-card">
+        <div id="tl-map"></div>
+        <div id="tl-legend">
+          <span><i class="tl-dot" style="background:#74B095"></i>NEW</span>
+          <span><i class="tl-dot" style="background:#C9A15A"></i>Changed</span>
+          <span><i class="tl-dot" style="background:#8A7AB8;opacity:.6"></i>Steady</span>
+          <span><i class="tl-dot" style="border:2px dashed #9CA3AF;width:8px;height:8px"></i>Gone</span>
+        </div>
+        <div class="tl-bar" id="tl-bar">
+          <div class="tl-ctl">
+            <button type="button" class="tl-btn" id="tl-prev" title="Previous scan (←)" aria-label="Previous scan"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5v14M18 6l-8 6 8 6z"/></svg></button>
+            <button type="button" class="tl-btn p" id="tl-play" title="Play / pause (space)" aria-label="Play">▶</button>
+            <button type="button" class="tl-btn" id="tl-next" title="Next scan (→)" aria-label="Next scan"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 5v14M6 6l8 6-8 6z"/></svg></button>
+            <select id="tl-speed" aria-label="Speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+            <button type="button" class="tl-btn" id="tl-fit" title="Fit map to all devices" aria-label="Fit map">⤢</button>
+          </div>
+          <div class="tl-track">
+            <div class="tl-ticks" id="tl-ticks"></div>
+            <input type="range" id="tl-slider" min="0" max="0" value="0" step="1" aria-label="Scan">
+            <div class="tl-tlbls" id="tl-tlbls"></div>
+          </div>
+          <div class="tl-info" id="tl-info"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card tl-side">
+      <div id="tl-detail" class="tl-detail" hidden></div>
+      <div class="tl-sort" id="tl-sort">
+        <span class="tl-lbl" style="margin-right:4px">Sort</span>
+        <button type="button" class="tl-tab active" data-sort="state">State</button>
+        <button type="button" class="tl-tab" data-sort="risk">Risk</button>
+        <button type="button" class="tl-tab" data-sort="seen">Seen</button>
+        <button type="button" class="tl-tab" data-sort="name">Name</button>
+      </div>
+      <div class="tl-cnt" id="tl-cnt"></div>
+      <div class="tl-list" id="tl-list"></div>
+    </div>
+  </div>
+  <div class="card tl-mx-card" style="margin-top:16px">
+    <div class="section-hdr" style="margin-bottom:8px">Presence matrix <span style="font-size:10px;letter-spacing:1px;color:var(--tm);text-transform:none;font-family:'JetBrains Mono',monospace;font-weight:400" id="tl-mx-sub"></span></div>
+    <div class="tl-mx-wrap" id="tl-mx-wrap"><canvas id="tl-mx" aria-label="Presence matrix: devices by scans; click a column to jump"></canvas></div>
+    <div class="tl-msg" id="tl-mx-msg"></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const E = v => escapeHtml(v);
+const KINDS = {nearby:'Nearby', cctv:'CCTV', cell:'Cell', adsb:'ADS-B', ais:'AIS', search:'Search', other:'Other'};
+const COL = {new:'#4ADE80', changed:'#FBBF24', steady:'#8B5CF6', gone:'#9CA3AF'};
+const ST_ORDER = {new:0, changed:1, steady:2, gone:3};
+const BASE_MS = 1400, LIST_LIMIT = 400, MX_ROWS = 30;
+
+/* ── Durum ── */
+const T = {
+  src: null,             // {mode:'area'|'case'|'scan', value}
+  data: null,            // API yanıtı
+  keys: [], dv: [],      // cihaz dizisi (indeks → kayıt)
+  frames: [],            // frames[i] = Set(cihaz indeksleri)
+  i: 0, playing: false, timer: null, speed: 1,
+  pass: null,            // filtre sonucu (Uint8Array)
+  sort: 'state', sel: null, frameItems: [],
+  areas: [], cases: [],
+};
+
+async function api(url){
+  const r = await fetch(url, {headers:{'Accept':'application/json'}});
+  let j = null; try { j = await r.json(); } catch(_){}
+  if(!r.ok){ const e = new Error((j && j.error) || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+  return j;
+}
+function fmtT(ts, short){
+  if(!ts) return '—';
+  const d = new Date(ts * 1000);
+  const p2 = x => String(x).padStart(2, '0');
+  const hm = p2(d.getHours()) + ':' + p2(d.getMinutes());
+  if(short === 'time') return hm;
+  if(short) return p2(d.getDate()) + '.' + p2(d.getMonth() + 1) + ' ' + hm;
+  return d.toLocaleString([], {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+const num = v => { const x = Number(v); return (v === null || v === undefined || v === '' || !isFinite(x)) ? null : x; };
+const devLinks = key => `<a class="tl-btn" href="/cases?device=${E(encodeURIComponent(key))}">History</a><a class="tl-btn" href="/graph?key=${E(encodeURIComponent(key))}">Graph</a>`;
+
+/* ── Kaynak seçici ── */
+async function loadSources(){
+  const [a, c] = await Promise.allSettled([api('/api/timeline/areas'), api('/api/cases')]);
+  T.areas = a.status === 'fulfilled' ? (a.value.areas || []) : [];
+  T.cases = c.status === 'fulfilled' ? (c.value.cases || []) : [];
+  let html = '<option value="">— Select an area or case —</option>';
+  if(T.areas.length) html += '<optgroup label="Areas (≥2 scans)">' + T.areas.map(x =>
+    `<option value="area:${E(x.area_key)}">${E(x.label)} · ${E(x.scans)} scans · last ${E(fmtT(x.last_at, true))}</option>`).join('') + '</optgroup>';
+  const cs = T.cases.filter(x => (x.scan_count || 0) >= 1);
+  if(cs.length) html += '<optgroup label="Cases">' + cs.map(x =>
+    `<option value="case:${E(x.id)}">${E(x.name)} · ${E(x.scan_count)} scans${x.status === 'closed' ? ' (closed)' : ''}</option>`).join('') + '</optgroup>';
+  $('tl-src').innerHTML = html;
+}
+function syncSelect(){
+  const s = T.src, d = T.data;
+  let v = '';
+  if(s && s.mode === 'case') v = 'case:' + s.value;
+  else if(d && d.source && d.source.area_key) v = 'area:' + d.source.area_key;
+  const sel = $('tl-src');
+  if(v && ![...sel.options].some(o => o.value === v)){
+    const o = document.createElement('option'); o.value = v; o.textContent = (d && d.source && d.source.label) || v; sel.appendChild(o);
+  }
+  sel.value = v;
+}
+$('tl-src').addEventListener('change', () => {
+  const v = $('tl-src').value; if(!v) return;
+  const i = v.indexOf(':');
+  openSource({mode: v.slice(0, i), value: v.slice(i + 1)}, true);
+});
+
+/* ── URL ── */
+function setUrl(push){
+  const q = new URLSearchParams(), s = T.src;
+  if(s) q.set(s.mode, s.value);
+  const u = '/timeline' + (q.toString() ? '?' + q.toString() : '');
+  if(u !== location.pathname + location.search) history[push ? 'pushState' : 'replaceState']({}, '', u);
+}
+function route(){
+  const q = new URLSearchParams(location.search);
+  const area = q.get('area'), cs = parseInt(q.get('case'), 10), sc = parseInt(q.get('scan'), 10);
+  if(sc > 0) return openSource({mode:'scan', value:String(sc)}, false);
+  if(cs > 0) return openSource({mode:'case', value:String(cs)}, false);
+  if(area) return openSource({mode:'area', value:area.slice(0, 200)}, false);
+  stop(); T.src = null; T.data = null;
+  showEmpty(T.areas.length ? 'SELECT AN AREA OR CASE' : 'NO REPEATED SCANS YET',
+    T.areas.length ? 'Yukarıdan bir bölge (aynı yerin tekrarlanan taramaları) ya da vaka seç.' : null);
+}
+window.addEventListener('popstate', route);
+function showEmpty(t, d){
+  $('tl-view').hidden = true; $('tl-empty').hidden = false;
+  $('tl-empty-t').textContent = t;
+  if(d) $('tl-empty-d').textContent = d;
+  syncSelect();
+}
+
+/* ── Veri yükleme ── */
+let loadSeq = 0;
+async function openSource(src, push){
+  stop();
+  const seq = ++loadSeq;
+  const p = src.mode === 'area' ? 'area_key=' + encodeURIComponent(src.value)
+          : src.mode === 'case' ? 'case_id=' + encodeURIComponent(src.value) : 'scan_id=' + encodeURIComponent(src.value);
+  $('tl-title').textContent = 'Loading…';
+  let d;
+  try { d = await api('/api/timeline?' + p + '&limit=500'); }
+  catch(e){
+    if(seq !== loadSeq) return;
+    T.src = src; T.data = null; setUrl(push);
+    showEmpty(e.status === 404 ? 'NOT FOUND' : 'ERROR', e.message || String(e));
+    return;
+  }
+  if(seq !== loadSeq) return;
+  T.src = src; T.data = d;
+  setUrl(push);
+  prepare(d);
+  if(!d.scans.length){ showEmpty('NO SCANS IN RANGE', 'Bu seçim için kayıtlı tarama yok.'); return; }
+  $('tl-empty').hidden = true; $('tl-view').hidden = false;
+  syncSelect();
+  renderHead();
+  buildTicks();
+  resetMap();
+  const fi = d.stats && d.stats.focus_idx;
+  setFrame(fi !== null && fi !== undefined ? fi : 0, true);
+  setTimeout(() => { if(map){ map.invalidateSize(); fitAll(); } drawMatrix(); }, 40);
+}
+
+function prepare(d){
+  const keys = Object.keys(d.devices || {});
+  T.keys = keys;
+  T.dv = keys.map((k, ix) => {
+    const x = d.devices[k];
+    const riskAt = new Map(); x.present.forEach((p, j) => riskAt.set(p, x.risks ? x.risks[j] : x.risk_max));
+    return {ix, key: k, name: x.name || '?', type: x.type || '', source: x.source || '', present: x.present,
+            presentSet: new Set(x.present), changed: new Set(x.changed || []), riskAt, risk_max: x.risk_max || 0,
+            positions: x.positions || [], first: x.first_idx, last: x.last_idx, marker: null, trail: null, st: null, on: false};
+  });
+  const n = d.scans.length;
+  T.frames = Array.from({length: n}, () => []);
+  T.dv.forEach(v => v.present.forEach(p => { if(p < n) T.frames[p].push(v.ix); }));
+  T.frameSets = T.frames.map(f => new Set(f));
+  // Tür filtresi seçenekleri
+  const types = [...new Set(T.dv.map(v => v.type).filter(Boolean))].sort();
+  const cur = $('tl-type').value;
+  $('tl-type').innerHTML = '<option value="">All types</option>' + types.map(t => `<option value="${E(t)}">${E(t)}</option>`).join('');
+  if(types.includes(cur)) $('tl-type').value = cur;
+  T.sel = null; $('tl-detail').hidden = true;
+  computePass();
+}
+
+function computePass(){
+  const type = $('tl-type').value, minR = parseInt($('tl-risk').value, 10) || 0, pers = $('tl-pers').value;
+  const N = Math.max(2, Math.min(500, parseInt($('tl-n').value, 10) || 2));
+  $('tl-n-wrap').hidden = pers !== 'persistent';
+  const pass = new Uint8Array(T.dv.length);
+  T.dv.forEach(v => {
+    let ok = (!type || v.type === type) && v.risk_max >= minR;
+    if(ok && pers === 'persistent') ok = v.present.length >= N;
+    if(ok && pers === 'transient') ok = v.present.length === 1;
+    pass[v.ix] = ok ? 1 : 0;
+  });
+  T.pass = pass;
+}
+
+/* ── Başlık / bilgi ── */
+function renderHead(){
+  const d = T.data, s = d.source || {}, st = d.stats || {};
+  const mode = s.mode === 'case' ? 'CASE' : 'AREA';
+  $('tl-title').textContent = (mode === 'CASE' ? '' : '') + (s.label || s.area_key || '—');
+  $('tl-sub').innerHTML = `${E(mode)} · ${E(st.scans)} SCANS${st.scans_total > st.scans ? ` OF ${E(st.scans_total)}` : ''} · ${E(st.devices)} DEVICES · ${E(st.persistent)} PERSISTENT · ${E(st.transient)} TRANSIENT · ${E(fmtT(st.first_at, true))} → ${E(fmtT(st.last_at, true))}`
+    + (st.truncated ? `<div class="tl-warn">Çok büyük — en eski ${E(st.scans_dropped)} tarama atlandı (satır sınırı ${E(st.row_cap)}).</div>` : '');
+  const cl = $('tl-cases-link');
+  cl.href = s.mode === 'case' && s.case_id ? '/cases?case=' + encodeURIComponent(s.case_id) : '/cases';
+}
+function renderInfo(){
+  const d = T.data, s = d.scans[T.i], c = s.counts || {};
+  const shown = T.frameItems.filter(x => x.st !== 'gone').length;
+  $('tl-info').innerHTML = `<span><b>#${E(T.i + 1)}</b> / ${E(d.scans.length)}</span>
+    <span><b>${E(fmtT(s.created_at))}</b></span>
+    <span class="lbl">${E(KINDS[s.kind] || s.kind)}${s.label ? ' · ' + E(s.label) : ''}</span>
+    <span>${E(s.device_count)} devices${shown !== s.device_count ? ` (${E(shown)} shown)` : ''}</span>
+    ${c.baseline ? '<span class="tl-pill b">BASELINE</span>' : `<span class="tl-pill n">+${E(c.new)} new</span><span class="tl-pill g">−${E(c.gone)} gone</span><span class="tl-pill c">~${E(c.changed)} changed</span>`}
+    <a class="tl-btn" style="padding:2px 8px;font-size:10px" href="/cases?scan=${E(encodeURIComponent(s.id))}">Open scan #${E(s.id)}</a>`;
+}
+
+/* ── Zaman çubuğu ── */
+function buildTicks(){
+  const sc = T.data.scans, n = sc.length, sl = $('tl-slider');
+  sl.max = Math.max(0, n - 1); sl.disabled = n < 2;
+  const pct = i => n < 2 ? 50 : (i / (n - 1)) * 100;
+  const maxTicks = 500;
+  let h = '';
+  for(let i = 0; i < n && i < maxTicks; i++){
+    const c = sc[i].counts || {};
+    h += `<i class="tl-tick${(c.new || c.gone || c.changed) ? ' chg' : ''}" data-i="${i}" style="left:${pct(i).toFixed(3)}%"></i>`;
+  }
+  $('tl-ticks').innerHTML = h;
+  // Zaman etiketleri: en fazla ~7
+  const sameDay = n && new Date(sc[0].created_at * 1000).toDateString() === new Date(sc[n - 1].created_at * 1000).toDateString();
+  const w = $('tl-ticks').clientWidth || 600;
+  const nl = Math.max(2, Math.min(n, Math.floor(w / (sameDay ? 70 : 110))));
+  const idxs = new Set();
+  for(let k = 0; k < nl; k++) idxs.add(Math.round(k * (n - 1) / Math.max(1, nl - 1)));
+  $('tl-tlbls').innerHTML = [...idxs].map(i => {
+    const cls = i === 0 && n > 1 ? 'l' : i === n - 1 && n > 1 ? 'r' : '';
+    return `<span class="${cls}" style="left:${pct(i).toFixed(3)}%">${E(fmtT(sc[i].created_at, sameDay ? 'time' : true))}</span>`;
+  }).join('');
+}
+function markTick(){
+  const prev = $('tl-ticks').querySelector('.tl-tick.cur'); if(prev) prev.classList.remove('cur');
+  const t = $('tl-ticks').children[T.i]; if(t) t.classList.add('cur');
+}
+$('tl-slider').addEventListener('input', () => { setFrame(parseInt($('tl-slider').value, 10) || 0); });
+$('tl-prev').addEventListener('click', () => { stop(); setFrame(T.i - 1); });
+$('tl-next').addEventListener('click', () => { stop(); setFrame(T.i + 1); });
+$('tl-play').addEventListener('click', () => T.playing ? stop() : play());
+$('tl-speed').addEventListener('change', () => { T.speed = parseFloat($('tl-speed').value) || 1; if(T.playing){ stop(); play(); } });
+$('tl-fit').addEventListener('click', () => fitAll());
+
+function play(){
+  if(!T.data || T.data.scans.length < 2) return;
+  if(T.i >= T.data.scans.length - 1) setFrame(0);
+  T.playing = true;
+  $('tl-play').textContent = '⏸'; $('tl-play').classList.add('on'); $('tl-play').setAttribute('aria-label', 'Pause');
+  clearInterval(T.timer);
+  T.timer = setInterval(() => {
+    if(!T.data || T.i >= T.data.scans.length - 1){ stop(); return; }
+    setFrame(T.i + 1);
+  }, Math.round(BASE_MS / (T.speed || 1)));
+}
+function stop(){
+  clearInterval(T.timer); T.timer = null;
+  if(!T.playing) return;
+  T.playing = false;
+  $('tl-play').textContent = '▶'; $('tl-play').classList.remove('on'); $('tl-play').setAttribute('aria-label', 'Play');
+}
+document.addEventListener('visibilitychange', () => { if(document.hidden) stop(); });
+window.addEventListener('pagehide', stop);
+document.addEventListener('keydown', e => {
+  if(!T.data || $('tl-view').hidden) return;
+  const tg = e.target && e.target.tagName;
+  if(tg === 'INPUT' || tg === 'SELECT' || tg === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+  if(e.key === ' ' && tg !== 'BUTTON' && tg !== 'A'){ e.preventDefault(); T.playing ? stop() : play(); }
+  else if(e.key === 'ArrowLeft'){ e.preventDefault(); stop(); setFrame(T.i - 1); }
+  else if(e.key === 'ArrowRight'){ e.preventDefault(); stop(); setFrame(T.i + 1); }
+});
+
+/* ── Harita ── */
+let map = null, devLayer = null, trailLayer = null, popup = null;
+function ensureMap(){
+  if(map || typeof L === 'undefined') return map;
+  map = L.map('tl-map', {preferCanvas: true, worldCopyJump: true}).setView([39, 35], 5);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 19}).addTo(map);
+  trailLayer = L.layerGroup().addTo(map);
+  devLayer = L.layerGroup().addTo(map);
+  popup = L.popup({maxWidth: 260, autoPanPadding: [20, 20]});
+  return map;
+}
+function resetMap(){
+  if(!ensureMap()) return;
+  devLayer.clearLayers(); trailLayer.clearLayers(); map.closePopup();
+  T.shown = new Set(); T.trailShown = new Set();
+}
+function fitAll(){
+  if(!map || !T.dv.length){ return; }
+  const pts = [];
+  T.dv.forEach(v => { if(T.pass[v.ix]) v.positions.forEach(p => pts.push([p[1], p[2]])); });
+  if(!pts.length){
+    const s = T.data.scans.find(x => num(x.lat) !== null);
+    if(s) map.setView([s.lat, s.lon], 13);
+    return;
+  }
+  map.fitBounds(pts.length > 4000 ? pts.filter((_, k) => k % Math.ceil(pts.length / 4000) === 0) : pts, {padding: [30, 30], maxZoom: 16});
+}
+function posAt(v, i){
+  // i'ye kadarki son konum (positions idx'e göre artan)
+  const ps = v.positions; let lo = 0, hi = ps.length - 1, r = -1;
+  while(lo <= hi){ const m = (lo + hi) >> 1; if(ps[m][0] <= i){ r = m; lo = m + 1; } else hi = m - 1; }
+  return r < 0 ? (ps.length ? ps[0] : null) : ps[r];
+}
+function stateAt(v, i){
+  if(v.presentSet.has(i)){
+    if(i > 0 && !v.presentSet.has(i - 1)) return 'new';
+    if(v.changed.has(i)) return 'changed';
+    return 'steady';
+  }
+  if(i > 0 && v.presentSet.has(i - 1)) return 'gone';
+  if(i > 1 && v.presentSet.has(i - 2) && !v.presentSet.has(i - 1)) return 'gone2';
+  return null;
+}
+const STYLE = {
+  new:     {radius: 7, color: COL.new, fillColor: COL.new, fillOpacity: .85, weight: 2, opacity: 1, dashArray: null},
+  changed: {radius: 7, color: COL.changed, fillColor: COL.changed, fillOpacity: .85, weight: 2, opacity: 1, dashArray: null},
+  steady:  {radius: 5, color: COL.steady, fillColor: COL.steady, fillOpacity: .45, weight: 1, opacity: .6, dashArray: null},
+  gone:    {radius: 6, color: COL.gone, fillColor: COL.gone, fillOpacity: .06, weight: 2, opacity: .75, dashArray: '3,3'},
+  gone2:   {radius: 5, color: COL.gone, fillColor: COL.gone, fillOpacity: 0, weight: 1, opacity: .3, dashArray: '2,4'},
+};
+function popupHtml(v){
+  const i = T.i, st = stateAt(v, i), n = T.data.scans.length;
+  const r = v.riskAt.has(i) ? v.riskAt.get(i) : v.risk_max;
+  const p = posAt(v, i);
+  return `<div class="tl-pop"><div class="nm">${E(v.name)}</div><div class="k">${E(v.key)}</div>
+    <div>${E(v.type || '?')} · ${E(v.source || '—')} · risk ${E(r)} (max ${E(v.risk_max)})</div>
+    <div>${st ? `<span style="color:${COL[st === 'gone2' ? 'gone' : st]}">${E(st === 'gone2' ? 'GONE' : st.toUpperCase())}</span> · ` : ''}seen in ${E(v.present.length)}/${E(n)} scans · #${E(v.first + 1)}–#${E(v.last + 1)}</div>
+    ${p ? `<div>${E(p[1].toFixed(5))}, ${E(p[2].toFixed(5))}${v.positions.length > 1 ? ` · ${E(v.positions.length - 1)} move(s)` : ''}</div>` : ''}
+    <div class="tl-links">${devLinks(v.key)}</div></div>`;
+}
+function openPopup(v){
+  if(!map || !v.marker || !v.on) return false;
+  popup.setLatLng(v.marker.getLatLng()).setContent(popupHtml(v)).openOn(map);
+  return true;
+}
+function getMarker(v){
+  if(v.marker) return v.marker;
+  const p = posAt(v, T.i); if(!p) return null;
+  const m = L.circleMarker([p[1], p[2]], STYLE.steady);
+  m._tlPos = p;
+  m.on('click', () => { selectDevice(v.ix, false); openPopup(v); });
+  v.marker = m;
+  return m;
+}
+function renderMap(){
+  if(!map) return;
+  const i = T.i, ghosts = $('tl-ghosts').checked, trails = $('tl-trails').checked;
+  const cand = new Set(T.frames[i]);
+  if(ghosts){ if(i > 0) T.frames[i - 1].forEach(x => cand.add(x)); if(i > 1) T.frames[i - 2].forEach(x => cand.add(x)); }
+  const next = new Set();
+  cand.forEach(ix => {
+    const v = T.dv[ix];
+    if(!T.pass[ix] || !v.positions.length) return;
+    const st = stateAt(v, i);
+    if(!st || (!ghosts && (st === 'gone' || st === 'gone2'))) return;
+    const m = getMarker(v); if(!m) return;
+    const p = posAt(v, i);
+    if(p !== m._tlPos){ m.setLatLng([p[1], p[2]]); m._tlPos = p; }
+    if(v.st !== st){ m.setStyle(STYLE[st]); v.st = st; if(st === 'new' || st === 'changed') m.bringToFront(); }
+    if(!v.on){ devLayer.addLayer(m); v.on = true; }
+    next.add(ix);
+  });
+  T.shown.forEach(ix => { if(!next.has(ix)){ const v = T.dv[ix]; if(v.marker && v.on){ devLayer.removeLayer(v.marker); v.on = false; } } });
+  T.shown = next;
+  // İzler
+  if(trails){
+    const want = new Set();
+    next.forEach(ix => {
+      const v = T.dv[ix]; if(v.positions.length < 2 || v.positions[1][0] > i) return;
+      const pts = []; for(const p of v.positions){ if(p[0] > i) break; pts.push([p[1], p[2]]); }
+      const col = COL[v.st === 'gone2' ? 'gone' : v.st] || COL.steady;
+      if(!v.trail){ v.trail = L.polyline(pts, {color: col, weight: 2, opacity: .7, dashArray: '4,4', interactive: false}); v.trailN = pts.length; }
+      else if(v.trailN !== pts.length){ v.trail.setLatLngs(pts); v.trailN = pts.length; }
+      if(v.trail._tlCol !== col){ v.trail.setStyle({color: col}); v.trail._tlCol = col; }
+      if(!v.trailOn){ trailLayer.addLayer(v.trail); v.trailOn = true; }
+      want.add(ix);
+    });
+    (T.trailShown || new Set()).forEach(ix => { if(!want.has(ix)){ const v = T.dv[ix]; trailLayer.removeLayer(v.trail); v.trailOn = false; } });
+    T.trailShown = want;
+  } else if(T.trailShown && T.trailShown.size){
+    T.trailShown.forEach(ix => { const v = T.dv[ix]; if(v.trail){ trailLayer.removeLayer(v.trail); v.trailOn = false; } });
+    T.trailShown = new Set();
+  }
+  // Açık açılır kutu: içerik/konum güncelle
+  if(T.sel !== null && map.hasLayer(popup)){
+    const v = T.dv[T.sel];
+    if(v && v.on) popup.setLatLng(v.marker.getLatLng()).setContent(popupHtml(v)); else map.closePopup();
+  }
+}
+
+/* ── Kare ── */
+function setFrame(i, force){
+  if(!T.data || !T.data.scans.length) return;
+  i = Math.max(0, Math.min(T.data.scans.length - 1, i | 0));
+  if(i === T.i && !force && T.frameItems.length) { $('tl-slider').value = i; return; }
+  T.i = i;
+  $('tl-slider').value = i;
+  $('tl-prev').disabled = i <= 0; $('tl-next').disabled = i >= T.data.scans.length - 1;
+  buildFrameItems();
+  renderMap();
+  renderInfo();
+  renderList();
+  markTick();
+  drawMatrix();
+}
+function buildFrameItems(){
+  const i = T.i, items = [];
+  const cand = new Set(T.frames[i]); if(i > 0) T.frames[i - 1].forEach(x => cand.add(x));
+  cand.forEach(ix => {
+    if(!T.pass[ix]) return;
+    const v = T.dv[ix], st = stateAt(v, i);
+    if(st && st !== 'gone2') items.push({ix, st, risk: v.riskAt.has(i) ? v.riskAt.get(i) : (v.riskAt.get(i - 1) || 0)});
+  });
+  T.frameItems = items;
+}
+function renderList(){
+  const items = T.frameItems.slice(), dv = T.dv;
+  const byName = (a, b) => dv[a.ix].name.localeCompare(dv[b.ix].name);
+  if(T.sort === 'state') items.sort((a, b) => ST_ORDER[a.st] - ST_ORDER[b.st] || b.risk - a.risk || byName(a, b));
+  else if(T.sort === 'risk') items.sort((a, b) => b.risk - a.risk || ST_ORDER[a.st] - ST_ORDER[b.st]);
+  else if(T.sort === 'seen') items.sort((a, b) => dv[b.ix].present.length - dv[a.ix].present.length || b.risk - a.risk);
+  else items.sort(byName);
+  const cnt = {new: 0, changed: 0, steady: 0, gone: 0}; items.forEach(x => cnt[x.st]++);
+  $('tl-cnt').textContent = `${items.length - cnt.gone} present · ${cnt.new} new · ${cnt.changed} changed · ${cnt.gone} gone`;
+  const n = T.data.scans.length;
+  $('tl-list').innerHTML = items.length ? items.slice(0, LIST_LIMIT).map(x => {
+    const v = dv[x.ix];
+    return `<button type="button" class="tl-dev st-${x.st}${T.sel === x.ix ? ' sel' : ''}" data-ix="${x.ix}">
+      <div class="nm"><span>${E(v.name)}</span><span class="tl-st ${x.st}">${E(x.st.toUpperCase())}</span></div>
+      <div>${E(v.type || '?')} · R:${E(x.risk)} · ${E(v.present.length)}/${E(n)} scans${v.positions.length ? '' : ' · no pos'}</div>
+    </button>`;
+  }).join('') + (items.length > LIST_LIMIT ? `<div class="tl-more">+${E(items.length - LIST_LIMIT)} more — filtrele</div>` : '')
+  : '<div class="tl-msg" style="text-align:center;padding:20px">No devices in this frame (check filters).</div>';
+}
+$('tl-sort').addEventListener('click', e => {
+  const b = e.target.closest('[data-sort]'); if(!b) return;
+  T.sort = b.dataset.sort;
+  $('tl-sort').querySelectorAll('[data-sort]').forEach(x => x.classList.toggle('active', x === b));
+  renderList();
+});
+$('tl-list').addEventListener('click', e => {
+  const b = e.target.closest('.tl-dev[data-ix]'); if(!b) return;
+  selectDevice(parseInt(b.dataset.ix, 10), true);
+});
+function selectDevice(ix, pan){
+  const v = T.dv[ix]; if(!v) return;
+  T.sel = ix;
+  $('tl-list').querySelectorAll('.tl-dev.sel').forEach(x => x.classList.remove('sel'));
+  const b = $('tl-list').querySelector(`.tl-dev[data-ix="${ix}"]`); if(b) b.classList.add('sel');
+  const n = T.data.scans.length;
+  $('tl-detail').hidden = false;
+  $('tl-detail').innerHTML = `<div style="display:flex;justify-content:space-between;gap:8px"><div class="nm">${E(v.name)}</div>
+      <button type="button" class="tl-btn" data-act="close" style="padding:1px 7px" aria-label="Close">✕</button></div>
+    <div class="tl-key">${E(v.key)}</div>
+    <div class="tl-dm">${E(v.type || '?')} · ${E(v.source || '—')} · risk max ${E(v.risk_max)} · seen ${E(v.present.length)}/${E(n)}${v.positions.length ? '' : ' · no position'}</div>
+    <div class="tl-links">${devLinks(v.key)}</div>`;
+  if(pan && v.on && v.marker && map){ map.panTo(v.marker.getLatLng()); openPopup(v); }
+  drawMatrix();
+}
+$('tl-detail').addEventListener('click', e => {
+  if(e.target.closest('[data-act="close"]')){ T.sel = null; $('tl-detail').hidden = true; if(map) map.closePopup(); renderList(); drawMatrix(); }
+});
+
+/* ── Filtreler ── */
+function onFilter(){
+  if(!T.data) return;
+  computePass();
+  if(T.sel !== null && !T.pass[T.sel]){ T.sel = null; $('tl-detail').hidden = true; if(map) map.closePopup(); }
+  setFrame(T.i, true);
+}
+['tl-type', 'tl-risk', 'tl-pers', 'tl-ghosts', 'tl-trails'].forEach(id => $(id).addEventListener('change', onFilter));
+$('tl-n').addEventListener('input', onFilter);
+
+/* ── Varlık matrisi ── */
+let mxRows = [], mxGeom = null;
+function drawMatrix(){
+  const cv = $('tl-mx'); if(!T.data || $('tl-view').hidden) return;
+  const n = T.data.scans.length;
+  mxRows = T.dv.filter(v => T.pass[v.ix]).sort((a, b) => b.present.length - a.present.length || b.risk_max - a.risk_max || a.name.localeCompare(b.name)).slice(0, MX_ROWS);
+  const tot = T.dv.reduce((s, v) => s + (T.pass[v.ix] ? 1 : 0), 0);
+  $('tl-mx-sub').textContent = `· top ${mxRows.length} of ${tot} devices × ${n} scans · click a column to jump`;
+  $('tl-mx-msg').textContent = mxRows.length ? '' : 'No devices match the filters.';
+  const W = Math.max(200, $('tl-mx-wrap').clientWidth);
+  const narrow = W < 600, labW = narrow ? 92 : 170, rowH = 13, topH = 4;
+  const cellW = Math.max(1, (W - labW - 4) / Math.max(1, n));
+  const H = topH + Math.max(1, mxRows.length) * rowH + 2;
+  const dpr = window.devicePixelRatio || 1;
+  if(cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)){
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.height = H + 'px';
+  }
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+  // geçerli sütun
+  g.fillStyle = 'rgba(255,255,255,0.08)';
+  g.fillRect(labW + T.i * cellW, 0, Math.max(cellW, 2), H);
+  g.font = '10px "JetBrains Mono", monospace'; g.textBaseline = 'middle';
+  const gap = cellW > 3 ? 1 : 0;
+  mxRows.forEach((v, r) => {
+    const y = topH + r * rowH;
+    if(T.sel === v.ix){ g.fillStyle = 'rgba(139,92,246,0.18)'; g.fillRect(0, y, W, rowH); }
+    g.fillStyle = T.sel === v.ix ? '#fff' : '#9896AE';
+    let nm = v.name; const maxCh = Math.floor((labW - 8) / 6.1);
+    if(nm.length > maxCh) nm = nm.slice(0, Math.max(1, maxCh - 1)) + '…';
+    g.fillText(nm, 2, y + rowH / 2);
+    g.fillStyle = 'rgba(255,255,255,0.035)';
+    g.fillRect(labW, y + 1, W - labW - 2, rowH - 2);
+    v.present.forEach(p => {
+      if(p >= n) return;
+      const st = p > 0 && !v.presentSet.has(p - 1) ? 'new' : v.changed.has(p) ? 'changed' : 'steady';
+      g.fillStyle = st === 'steady' ? 'rgba(139,92,246,0.75)' : COL[st];
+      g.fillRect(labW + p * cellW, y + 2, Math.max(1, cellW - gap), rowH - 4);
+    });
+  });
+  // geçerli sütun çerçevesi
+  g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 1;
+  g.strokeRect(labW + T.i * cellW + .5, .5, Math.max(cellW, 2) - 1, H - 1);
+  mxGeom = {labW, cellW, rowH, topH, n};
+}
+$('tl-mx').addEventListener('click', e => {
+  if(!mxGeom) return;
+  const rc = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX - rc.left, y = e.clientY - rc.top;
+  if(x < mxGeom.labW){
+    const r = Math.floor((y - mxGeom.topH) / mxGeom.rowH);
+    if(mxRows[r]) selectDevice(mxRows[r].ix, true);
+    return;
+  }
+  const col = Math.min(mxGeom.n - 1, Math.floor((x - mxGeom.labW) / mxGeom.cellW));
+  if(col >= 0){ stop(); setFrame(col); }
+});
+let rsT = null;
+window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => { if(T.data && T.data.scans.length){ buildTicks(); markTick(); drawMatrix(); } }, 150); });
+
+/* Salt-okunur durum özeti (testler / konsoldan inceleme için) */
+window.SignalOpsTimeline = {state(){
+  const st = {}; (T.shown || new Set()).forEach(ix => { const s = T.dv[ix].st; st[s] = (st[s] || 0) + 1; });
+  return {i: T.i, n: T.data ? T.data.scans.length : 0, playing: T.playing, timer: T.timer !== null, shown: T.shown ? T.shown.size : 0,
+          styles: st, trails: T.trailShown ? T.trailShown.size : 0, sel: T.sel !== null && T.dv[T.sel] ? T.dv[T.sel].key : null,
+          mode: T.data && T.data.source ? T.data.source.mode : null};
+}};
+
+/* ── Başlat ── */
+(async function init(){
+  try { await loadSources(); } catch(_){}
+  route();
+})();
+})();
+</script>
+{% endblock %}

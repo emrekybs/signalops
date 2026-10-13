@@ -1,0 +1,10 @@
+data/
+db/
+config/
+.git/
+.venv/
+**/__pycache__/
+*.zip
+.env
+watchlist_alerts.json
+dist/

@@ -1,0 +1,579 @@
+{% extends "base.html" %}
+{% block title %}Correlation Graph — SignalOps{% endblock %}
+{% block extra_style %}
+[hidden]{display:none!important}
+.gr-top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.gr-top .section-hdr{margin-bottom:0}
+.gr-sub{font-size:10px;letter-spacing:1px;color:var(--tm);text-transform:none;font-family:'JetBrains Mono',monospace;font-weight:400}
+.gr-btn{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;
+  border-radius:6px;padding:5px 11px;background:transparent;color:var(--td);border:1px solid rgba(255,255,255,0.12);
+  text-decoration:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;line-height:1.3}
+.gr-btn:hover{color:var(--t);border-color:rgba(138, 122, 184,0.4)}
+.gr-btn:disabled{opacity:.4;cursor:not-allowed}
+.gr-btn.p{color:var(--pl);border-color:rgba(138, 122, 184,0.35);background:rgba(138, 122, 184,0.08)}
+.gr-btn.g{color:var(--g);border-color:rgba(116, 176, 149,0.3);background:rgba(116, 176, 149,0.06)}
+.gr-ctl{padding:14px 16px}
+.gr-form{display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(180px,2fr) 80px 96px 96px auto;gap:10px;align-items:end}
+.gr-f label,.gr-lbl{display:block;font-size:9px;letter-spacing:2px;color:var(--tm);text-transform:uppercase;margin-bottom:4px}
+.gr-f input,.gr-f select{padding:7px 10px}
+.gr-row2{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--b)}
+.gr-kinds{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.gr-chk{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--td);border:1px solid rgba(255,255,255,0.08);
+  border-radius:12px;padding:3px 9px;cursor:pointer;user-select:none;white-space:nowrap}
+.gr-chk input{width:auto;margin:0;accent-color:var(--p)}
+.gr-chk:has(input:checked){color:var(--t);border-color:rgba(138, 122, 184,0.45);background:rgba(138, 122, 184,0.1)}
+.gr-chk i{width:14px;height:0;border-top:2px solid;display:inline-block}
+.gr-chk i.dash{border-top-style:dashed}
+.gr-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.gr-card{padding:0;overflow:hidden;position:relative;margin-bottom:0}
+.gr-tools{display:flex;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--b);flex-wrap:wrap}
+.gr-tools input{flex:1 1 180px;min-width:0;padding:6px 10px}
+.gr-hits{font-size:10px;color:var(--tm);white-space:nowrap}
+#gr-cy{height:calc(100vh - 330px);min-height:460px;background:radial-gradient(ellipse at center,#101015 0%,#0B0B0F 75%)}
+#gr-legend{position:absolute;left:10px;bottom:10px;z-index:5;background:rgba(11, 11, 15,0.88);border:1px solid var(--b);border-radius:6px;
+  padding:6px 10px;font-size:10px;color:var(--td);display:flex;gap:4px 12px;flex-wrap:wrap;max-width:calc(100% - 20px);pointer-events:none}
+#gr-legend span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.gr-sw{width:10px;height:10px;display:inline-block;flex-shrink:0}
+.gr-sw.c{border-radius:50%}.gr-sw.d{transform:rotate(45deg) scale(.8)}.gr-sw.r{border-radius:2px}
+.gr-sw.t{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid;background:none!important}
+#gr-status{position:absolute;right:10px;top:54px;z-index:5;font-size:10px;color:var(--td);background:rgba(11, 11, 15,0.85);
+  border:1px solid var(--b);border-radius:6px;padding:5px 9px;max-width:calc(100% - 20px);pointer-events:none}
+#gr-status.warn{color:var(--warn);border-color:rgba(201, 161, 90,0.3)}
+#gr-status.err{color:var(--danger);border-color:rgba(199, 123, 123,0.3)}
+.gr-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;color:var(--tm);
+  position:absolute;inset:46px 0 0 0;z-index:6;background:rgba(11, 11, 15,0.92)}
+.gr-empty .ic{font-size:40px;opacity:.25;margin-bottom:12px}
+.gr-empty .t{font-family:'Rajdhani',sans-serif;letter-spacing:3px;color:var(--td);font-size:15px}
+.gr-empty .s{font-size:11px;margin:8px 0 14px;max-width:420px;line-height:1.6}
+.gr-panel{padding:16px;max-height:calc(100vh - 230px);overflow-y:auto;margin-bottom:0}
+.gr-h1{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:var(--t);letter-spacing:.5px;overflow-wrap:anywhere;line-height:1.2}
+.gr-key{font-size:10px;color:var(--tm);overflow-wrap:anywhere;margin-top:4px}
+.gr-kick{font-size:9px;letter-spacing:2px;color:var(--tm);text-transform:uppercase;margin-bottom:4px}
+.gr-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.gr-stat{background:var(--e);border:1px solid var(--b);border-radius:6px;padding:8px 10px;min-width:0}
+.gr-stat .v{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:var(--t);overflow-wrap:anywhere}
+.gr-stat .l{font-size:9px;letter-spacing:1.5px;color:var(--td);opacity:.75;text-transform:uppercase;margin-top:2px}
+.gr-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.gr-sec{margin-top:16px}
+.gr-sec>h4{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--td);text-transform:uppercase;
+  margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.gr-sec>h4::before{content:'';width:3px;height:12px;background:var(--p);border-radius:2px}
+.gr-kv{width:100%}
+.gr-kv td{padding:4px 6px;font-size:10px;overflow-wrap:anywhere;vertical-align:top}
+.gr-kv td:first-child{color:var(--tm);width:96px}
+.gr-chips{display:flex;flex-direction:column;gap:4px}
+.gr-nb{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;background:var(--e);border:1px solid transparent;
+  border-left:3px solid var(--tm);border-radius:5px;padding:6px 9px;cursor:pointer;color:var(--t);font-family:'JetBrains Mono',monospace;font-size:10px}
+.gr-nb:hover{border-color:rgba(138, 122, 184,0.35)}
+.gr-nb span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gr-nb .w{color:var(--td);flex-shrink:0}
+.gr-dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0}
+.gr-help{font-size:11px;color:var(--td);line-height:1.7;margin-top:12px}
+.gr-help b{color:var(--t);font-weight:500}
+@media (max-width:1200px){
+  .gr-form{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .gr-form .gr-f.wide{grid-column:span 2}
+}
+@media (max-width:900px){
+  .gr-grid{grid-template-columns:minmax(0,1fr)}
+  #gr-cy{height:60vh;min-height:300px}
+  .gr-panel{max-height:none}
+  .gr-btn{min-height:32px}
+}
+@media (max-width:600px){
+  .gr-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .gr-form .gr-f.wide,.gr-form .gr-f.full{grid-column:1 / -1}
+  .gr-ctl{padding:12px}
+  #gr-legend{font-size:9px;gap:3px 8px;padding:5px 8px}
+  #gr-status{position:static;display:block;margin:0 10px 10px;max-width:none}
+  #gr-legend{display:none}
+  .gr-legend-sm{display:flex!important}
+}
+.gr-legend-sm{display:none;gap:4px 10px;flex-wrap:wrap;font-size:9px;color:var(--td);padding:8px 10px;border-top:1px solid var(--b)}
+.gr-legend-sm span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+{% endblock %}
+{% block content %}
+<div class="gr-top">
+  <div class="section-hdr">Correlation Graph <span class="gr-sub">· devices · cases · shared SSID / subnet / LAC / org</span></div>
+  <a class="gr-btn" href="/cases" id="gr-back">← Cases</a>
+</div>
+
+<div class="card gr-ctl">
+  <form id="gr-form" class="gr-form" autocomplete="off">
+    <div class="gr-f wide"><label for="gr-case">Case</label>
+      <select id="gr-case"><option value="">All cases (whole DB)</option></select></div>
+    <div class="gr-f wide full"><label for="gr-key">Focus device key (ego graph)</label>
+      <input id="gr-key" maxlength="300" placeholder="mac:aa:bb:… · ip:1.2.3.4:554 · cell:… (empty = overview)" spellcheck="false"></div>
+    <div class="gr-f"><label for="gr-depth">Depth</label>
+      <select id="gr-depth"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select></div>
+    <div class="gr-f"><label for="gr-together" title="Two devices are linked when seen together in at least this many scans">Min together</label>
+      <input id="gr-together" type="number" min="1" max="100000" value="2" inputmode="numeric"></div>
+    <div class="gr-f"><label for="gr-limit">Max devices</label>
+      <input id="gr-limit" type="number" min="1" max="1500" value="300" inputmode="numeric"></div>
+    <div class="gr-f full"><button class="btn btn-p" type="submit" id="gr-load" style="width:100%;padding:8px 18px">Load</button></div>
+  </form>
+  <div class="gr-row2">
+    <div class="gr-kinds" id="gr-kinds"><span class="gr-lbl" style="margin:0 4px 0 0">Scan kinds</span></div>
+    <div class="gr-kinds" id="gr-rels"><span class="gr-lbl" style="margin:0 4px 0 0">Edges</span></div>
+  </div>
+</div>
+
+<div class="gr-grid">
+  <div class="card gr-card">
+    <div class="gr-tools">
+      <input id="gr-q" placeholder="Search name / key…  (Enter = next)" aria-label="Search nodes" spellcheck="false">
+      <span class="gr-hits" id="gr-hits"></span>
+      <button class="gr-btn" type="button" id="gr-fit" title="Fit graph to view">⤢ Fit</button>
+      <button class="gr-btn" type="button" id="gr-relayout" title="Re-run layout">↻ Layout</button>
+      <button class="gr-btn" type="button" id="gr-png">PNG</button>
+      <button class="gr-btn" type="button" id="gr-json">JSON</button>
+    </div>
+    <div id="gr-cy" role="img" aria-label="Correlation graph"></div>
+    <div id="gr-legend"></div>
+    <div class="gr-legend-sm" id="gr-legend-sm"></div>
+    <div id="gr-status">Loading…</div>
+    <div class="gr-empty" id="gr-empty" hidden>
+      <div class="ic"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="9" cy="18" r="2.5"/><path d="M8.3 7l7.4.6M7 8.4l1.4 7.2M16.3 9.8l-5.6 6.4"/></svg></div>
+      <div class="t" id="gr-empty-t">No saved scans yet</div>
+      <div class="s" id="gr-empty-s">Save scans to a case first — the graph is built from saved scans (“<svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></svg> Save to case” on scan pages).</div>
+      <a class="gr-btn p" href="/cases">Open Cases →</a>
+    </div>
+  </div>
+  <aside class="card gr-panel" id="gr-panel" aria-live="polite"></aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const E = v => escapeHtml(v);
+const KINDS = {nearby:'Nearby', cctv:'CCTV', cell:'Cell', adsb:'ADS-B', ais:'AIS', search:'Search', other:'Other'};
+/* Cihaz tipi renkleri — surveillance / SIGINT haritası ile aynı palet */
+const TYPE_COL = {
+  router:'#60A5FA', camera:'#EF4444', camera_exposed:'#EF4444', dashcam:'#F97316', cell_tower:'#C084FC', drone:'#A78BFA',
+  bluetooth:'#3B82F6', ble:'#3B82F6', iot_device:'#FBBF24', iot:'#FBBF24', tracker:'#FB7185', aircraft:'#38BDF8',
+  vessel:'#2DD4BF', satellite:'#E879F9', tv:'#4ADE80', car:'#FACC15', vehicle:'#FACC15', headphone:'#22D3EE',
+  speaker:'#22D3EE', obd:'#FB923C', laptop:'#94A3B8', phone:'#A3E635', printer:'#D4D4D8'
+};
+const DEF_COL = '#9896AE';
+const GROUPS = {
+  case:         {label:'Case',         color:'#4ADE80', shape:'round-rectangle', sw:'r'},
+  ssid:         {label:'SSID',         color:'#93C5FD', shape:'diamond',         sw:'d'},
+  net24:        {label:'IPv4 /24',     color:'#FCD34D', shape:'hexagon',         sw:'r'},
+  operator_lac: {label:'Operator·LAC', color:'#D8B4FE', shape:'triangle',        sw:'t'},
+  org:          {label:'Org / ASN',    color:'#FDBA74', shape:'barrel',          sw:'r'},
+};
+const RELS = {
+  seen_with:  {label:'seen with',  color:'#A78BFA', dash:false},
+  in_case:    {label:'in case',    color:'#4ADE80', dash:false},
+  broadcasts: {label:'broadcasts', color:'#60A5FA', dash:true},
+  in_net:     {label:'in /24',     color:'#FBBF24', dash:true},
+  in_lac:     {label:'in LAC',     color:'#C084FC', dash:false},
+  org:        {label:'org',        color:'#FB923C', dash:true},
+};
+const GROUP_REL = {case:'in_case', ssid:'broadcasts', net24:'in_net', operator_lac:'in_lac', org:'org'};
+const FLAG_COLORS = {red:'#F87171', amber:'#FBBF24', green:'#4ADE80', blue:'#60A5FA', purple:'#A78BFA', grey:'#9CA3AF'};
+const S = {cy:null, last:null, cases:[], hidden:new Set(), hits:[], hitIdx:-1, selId:null, loading:false, reqSeq:0};
+
+function nodeColor(d){
+  if(d.group === 'device') return TYPE_COL[d.type] || DEF_COL;
+  return (GROUPS[d.group] || {}).color || DEF_COL;
+}
+function short(s, n){ s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+function fmtT(ts){
+  if(!ts) return '—';
+  return new Date(ts * 1000).toLocaleString([], {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+}
+function riskColor(r){ r = Number(r) || 0; return r >= 70 ? '#F87171' : r >= 40 ? '#FBBF24' : '#A78BFA'; }
+async function api(url){
+  const r = await fetch(url, {headers:{'Accept':'application/json'}});
+  let j = null; try { j = await r.json(); } catch(_){}
+  if(!r.ok){ const e = new Error((j && j.error) || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+  return j;
+}
+function status(msg, cls){ const el = $('gr-status'); el.textContent = msg; el.className = cls || ''; el.hidden = !msg; }
+
+/* ── Controls ── */
+function buildChecks(){
+  $('gr-kinds').insertAdjacentHTML('beforeend', Object.keys(KINDS).map(k =>
+    `<label class="gr-chk"><input type="checkbox" value="${E(k)}" data-kind>${E(KINDS[k])}</label>`).join(''));
+  $('gr-rels').insertAdjacentHTML('beforeend', Object.keys(RELS).map(r =>
+    `<label class="gr-chk" title="Show / hide ${E(RELS[r].label)} edges"><input type="checkbox" value="${E(r)}" data-rel checked><i class="${RELS[r].dash ? 'dash' : ''}" style="border-color:${RELS[r].color}"></i>${E(RELS[r].label)}</label>`).join(''));
+  const lg = [];
+  const typesShown = [['router','Router'],['bluetooth','BT'],['camera','Camera'],['cell_tower','Tower'],['aircraft','Aircraft'],['vessel','Vessel'],['iot_device','IoT']];
+  typesShown.forEach(([t, l]) => lg.push(`<span><i class="gr-sw c" style="background:${TYPE_COL[t]}"></i>${E(l)}</span>`));
+  Object.keys(GROUPS).forEach(g => { const G = GROUPS[g];
+    lg.push(`<span><i class="gr-sw ${G.sw}" style="background:${G.color};${G.sw === 't' ? 'border-bottom-color:' + G.color : ''}"></i>${E(G.label)}</span>`); });
+  lg.push(`<span><i class="gr-sw c" style="border:2px solid #F87171;background:transparent"></i>risk ≥70</span>`);
+  lg.push(`<span>flagged</span>`);
+  $('gr-legend').innerHTML = lg.join('');
+  $('gr-legend-sm').innerHTML = lg.join('');
+}
+$('gr-rels').addEventListener('change', e => {
+  const cb = e.target.closest('input[data-rel]'); if(!cb) return;
+  if(cb.checked) S.hidden.delete(cb.value); else S.hidden.add(cb.value);
+  applyHidden();
+});
+function applyHidden(){
+  const cy = S.cy; if(!cy) return;
+  cy.batch(() => {
+    cy.elements().removeClass('hid');
+    cy.edges().forEach(e => { if(S.hidden.has(e.data('rel'))) e.addClass('hid'); });
+    cy.nodes().forEach(n => { const r = GROUP_REL[n.data('group')]; if(r && S.hidden.has(r)) n.addClass('hid'); });
+  });
+}
+async function loadCases(){
+  try {
+    const j = await api('/api/cases');
+    S.cases = j.cases || [];
+    const sel = $('gr-case'), cur = sel.value;
+    sel.innerHTML = '<option value="">All cases (whole DB)</option>' + S.cases.map(c =>
+      `<option value="${E(c.id)}">${E(short(c.name, 60))} · ${E(c.scan_count)} scans${c.status === 'closed' ? ' (closed)' : ''}</option>`).join('');
+    if(cur) sel.value = cur;
+  } catch(e){ status('Cases: ' + e.message, 'err'); }
+}
+function readForm(){
+  const kinds = [...document.querySelectorAll('input[data-kind]:checked')].map(i => i.value);
+  return {
+    case_id: $('gr-case').value || '',
+    key: $('gr-key').value.trim(),
+    depth: $('gr-depth').value,
+    min_together: String(Math.max(1, Math.min(100000, parseInt($('gr-together').value, 10) || 2))),
+    limit: String(Math.max(1, Math.min(1500, parseInt($('gr-limit').value, 10) || 300))),
+    kinds: kinds.join(','),
+  };
+}
+function toQuery(p, forUrl){
+  const q = new URLSearchParams();
+  if(p.case_id) q.set(forUrl ? 'case' : 'case_id', p.case_id);
+  if(p.key){ q.set('key', p.key); q.set('depth', p.depth); }
+  if(p.min_together && p.min_together !== '2') q.set('min_together', p.min_together);
+  if(p.limit && (p.limit !== '300' || !forUrl)) q.set('limit', p.limit);
+  if(p.kinds) q.set('kinds', p.kinds);
+  if(!forUrl && p.min_together) q.set('min_together', p.min_together);
+  return q.toString();
+}
+function fromUrl(){
+  const q = new URLSearchParams(location.search);
+  const cs = q.get('case') || q.get('case_id');
+  if(cs && /^\d+$/.test(cs)) $('gr-case').dataset.want = cs;
+  $('gr-key').value = (q.get('key') || q.get('device') || '').slice(0, 300);
+  const d = q.get('depth'); if(['1','2','3'].includes(d)) $('gr-depth').value = d;
+  const mt = parseInt(q.get('min_together'), 10); if(mt >= 1) $('gr-together').value = Math.min(mt, 100000);
+  const lm = parseInt(q.get('limit'), 10); if(lm >= 1) $('gr-limit').value = Math.min(lm, 1500);
+  const ks = (q.get('kinds') || '').split(',');
+  document.querySelectorAll('input[data-kind]').forEach(i => { i.checked = ks.includes(i.value); });
+}
+$('gr-form').addEventListener('submit', e => { e.preventDefault(); load(true); });
+
+/* ── Cytoscape ── */
+function devSize(d){
+  const c = Number(d.count) || 1, r = Number(d.risk) || 0;
+  return Math.round(16 + Math.min(26, Math.log2(1 + c) * 5) + r / 12);
+}
+function edgeWidth(d){
+  const w = Number(d.weight) || 1;
+  return d.rel === 'seen_with' || d.rel === 'in_case' ? Math.min(9, 1 + Math.log2(w) * 1.6) : 1.2;
+}
+function cyStyle(){
+  return [
+    {selector:'node', style:{
+      'background-color': n => nodeColor(n.data()), 'label': n => n.data('_lbl') || '',
+      'color':'#C8C8D8', 'font-family':'JetBrains Mono, monospace', 'font-size':9, 'text-valign':'bottom', 'text-margin-y':3,
+      'text-wrap':'ellipsis', 'text-max-width':120, 'min-zoomed-font-size':7,
+      'text-outline-color':'#080E09', 'text-outline-width':2, 'border-width':0, 'overlay-opacity':0}},
+    {selector:'node[group = "device"]', style:{'shape':'ellipse', 'width': n => devSize(n.data()), 'height': n => devSize(n.data())}},
+    {selector:'node[group != "device"]', style:{
+      'shape': n => (GROUPS[n.data('group')] || {}).shape || 'rectangle',
+      'width': n => Math.round(14 + Math.min(16, Math.log2(1 + (Number(n.data('count')) || 1)) * 4)),
+      'height': n => Math.round(14 + Math.min(16, Math.log2(1 + (Number(n.data('count')) || 1)) * 4)),
+      'background-opacity':.85, 'color':'#9896AE', 'font-size':8}},
+    {selector:'node[group = "case"]', style:{'width':34, 'height':22, 'font-size':10, 'color':'#4ADE80', 'font-weight':'bold'}},
+    {selector:'node[risk >= 70]', style:{'border-width':3, 'border-color':'#F87171'}},
+    {selector:'node[?flagged]', style:{'border-width':3, 'border-style':'double', 'border-color': n => FLAG_COLORS[n.data('flag_color')] || '#F87171'}},
+    {selector:'node[?flagged][risk >= 70]', style:{'border-width':4, 'border-style':'double', 'border-color':'#F87171'}},
+    {selector:'node[?focus]', style:{'underlay-color':'#A78BFA', 'underlay-padding':7, 'underlay-opacity':.35, 'underlay-shape':'ellipse'}},
+    {selector:'edge', style:{
+      'width': e => edgeWidth(e.data()), 'line-color': e => (RELS[e.data('rel')] || {}).color || '#555',
+      'opacity':.55, 'curve-style':'haystack', 'haystack-radius':0, 'overlay-opacity':0}},
+    {selector:'edge[rel = "broadcasts"], edge[rel = "in_net"], edge[rel = "org"]', style:{'line-style':'dashed', 'line-dash-pattern':[5, 4]}},
+    {selector:'edge[?flagged]', style:{'line-color': e => FLAG_COLORS[e.data('flag_color')] || '#F87171', 'opacity':.9}},
+    {selector:'edge.nb', style:{'opacity':1, 'label':'data(label)', 'font-size':8, 'color':'#E2E2EC', 'text-outline-color':'#080E09',
+      'text-outline-width':2, 'font-family':'JetBrains Mono, monospace'}},
+    {selector:'node:selected', style:{'underlay-color':'#FFFFFF', 'underlay-padding':6, 'underlay-opacity':.35, 'underlay-shape':'ellipse'}},
+    {selector:'.dim', style:{'opacity':.12}},
+    {selector:'node.hl', style:{'underlay-color':'#FACC15', 'underlay-padding':9, 'underlay-opacity':.55, 'underlay-shape':'ellipse', 'z-index':20}},
+    {selector:'.hid', style:{'display':'none'}},
+  ];
+}
+function prepNode(n){
+  const d = n.data;
+  d._lbl = (d.flagged ? '⚑ ' : '') + short(d.label || d.id, 28);
+  return n;
+}
+function layoutOpts(n, fit){
+  if(n <= 400) return {name:'cose', animate:false, randomize:true, fit, padding:30, nodeRepulsion:() => 9000, idealEdgeLength:() => 70,
+    edgeElasticity:() => 90, gravity:0.35, numIter:n > 200 ? 700 : 1000, componentSpacing:60, nodeOverlap:8, nestingFactor:1.2};
+  if(n <= 1600) return {name:'concentric', animate:false, fit, padding:20, minNodeSpacing:4, avoidOverlap:false,
+    concentric:nd => nd.data('group') === 'device' ? nd.degree() : nd.degree() + 1000, levelWidth:() => 4};
+  return {name:'grid', animate:false, fit, padding:20, avoidOverlap:false};
+}
+function initCy(){
+  if(S.cy) return S.cy;
+  if(typeof cytoscape !== 'function'){ status('Cytoscape library failed to load (offline?)', 'err'); return null; }
+  S.cy = cytoscape({container:$('gr-cy'), style:cyStyle(), elements:[], minZoom:0.05, maxZoom:4, wheelSensitivity:0.25,
+    boxSelectionEnabled:false, textureOnViewport:false, hideEdgesOnViewport:false, pixelRatio:'auto'});
+  S.cy.on('tap', 'node', e => select(e.target.id()));
+  S.cy.on('tap', e => { if(e.target === S.cy) select(null); });
+  return S.cy;
+}
+function render(g){
+  const cy = initCy(); if(!cy) return;
+  S.last = g;
+  cy.batch(() => {
+    cy.elements().remove();
+    cy.add(g.nodes.map(prepNode).map(n => ({group:'nodes', data:n.data})));
+    cy.add(g.edges.map(e => ({group:'edges', data:e.data})));
+  });
+  applyHidden();
+  cy.layout(layoutOpts(cy.nodes().length, true)).run();
+  if(cy.nodes().length === 1) cy.zoom(1.5), cy.center();
+}
+
+/* ── Load ── */
+async function load(push){
+  const p = readForm();
+  if(push){
+    const u = '/graph' + (toQuery(p, true) ? '?' + toQuery(p, true) : '');
+    if(u !== location.pathname + location.search) history.pushState({}, '', u);
+  }
+  const seq = ++S.reqSeq;
+  $('gr-load').disabled = true;
+  status('Loading…');
+  try {
+    const g = await api('/api/graph?' + toQuery(p, false));
+    if(seq !== S.reqSeq) return;
+    const empty = !g.stats.db_scans;
+    $('gr-empty').hidden = !(empty || !g.nodes.length);
+    if(empty){
+      $('gr-empty-t').textContent = 'NO SAVED SCANS YET';
+      $('gr-empty-s').textContent = 'Save scans to a case first — the graph is built from saved scans (“Save to case” on scan pages).';
+    } else if(!g.nodes.length){
+      $('gr-empty-t').textContent = 'NOTHING MATCHES';
+      $('gr-empty-s').textContent = 'No devices in the selected case / scan kinds. Clear the filters or pick another case.';
+    }
+    render(g);
+    const st = g.stats;
+    let msg = `${st.devices} devices · ${st.nodes} nodes · ${st.edges} edges · ${st.ms} ms`;
+    if(st.truncated) msg += ` · limited to ${st.limit}`;
+    if(st.edges_truncated) msg += ' · seen-with edges capped';
+    status(msg, st.truncated || st.edges_truncated ? 'warn' : '');
+    S.selId = null;
+    if(st.focus && S.cy.getElementById(st.focus).nonempty()) select(st.focus, true); else renderOverview();
+    runSearch(false);
+  } catch(e){
+    if(seq !== S.reqSeq) return;
+    status(e.message, 'err');
+    if(e.status === 404 || e.status === 400){ if(S.cy) S.cy.elements().remove(); S.last = null; renderOverview(e.message); }
+  } finally {
+    if(seq === S.reqSeq) $('gr-load').disabled = false;
+  }
+}
+window.addEventListener('popstate', () => { fromUrl(); applyWantCase(); load(false); });
+function applyWantCase(){
+  const w = $('gr-case').dataset.want; delete $('gr-case').dataset.want;
+  const sel = $('gr-case');
+  if(w && ![...sel.options].some(o => o.value === w)){
+    const o = document.createElement('option'); o.value = w; o.textContent = 'Case #' + w; sel.appendChild(o);
+  }
+  sel.value = w || '';
+}
+
+/* ── Expand (merge neighbours of a node) ── */
+async function expand(id){
+  const cy = S.cy; if(!cy) return;
+  const node = cy.getElementById(id); if(node.empty()) return;
+  const p = readForm(); p.key = id; p.depth = '1'; p.limit = '150';
+  status('Expanding…');
+  try {
+    const g = await api('/api/graph?' + toQuery(p, false));
+    const c = node.position();
+    const fresh = g.nodes.filter(n => cy.getElementById(n.data.id).empty());
+    const r = 90 + fresh.length * 4;
+    cy.batch(() => {
+      fresh.forEach((n, i) => {
+        const a = 2 * Math.PI * i / Math.max(1, fresh.length);
+        cy.add({group:'nodes', data:prepNode(n).data, position:{x:c.x + r * Math.cos(a), y:c.y + r * Math.sin(a)}});
+      });
+      g.edges.forEach(e => {
+        if(cy.getElementById(e.data.id).empty() && cy.getElementById(e.data.source).nonempty() && cy.getElementById(e.data.target).nonempty())
+          cy.add({group:'edges', data:e.data});
+      });
+    });
+    applyHidden();
+    cy.animate({fit:{eles:node.closedNeighborhood(), padding:40}}, {duration:300});
+    status(`+${fresh.length} nodes from ${short(node.data('label'), 30)} · ${cy.nodes().length} nodes · ${cy.edges().length} edges`, g.stats.truncated ? 'warn' : '');
+    select(id);
+  } catch(e){ status('Expand: ' + e.message, 'err'); }
+}
+
+/* ── Selection / side panel ── */
+function select(id, center){
+  const cy = S.cy; if(!cy) return;
+  cy.elements().removeClass('nb');
+  cy.nodes().unselect();
+  S.selId = id;
+  if(!id){ renderOverview(); return; }
+  const n = cy.getElementById(id); if(n.empty()){ renderOverview(); return; }
+  n.select(); n.connectedEdges().addClass('nb');
+  if(center) cy.animate({center:{eles:n}, zoom:Math.max(cy.zoom(), 1.1)}, {duration:250});
+  renderPanel(n);
+}
+function kv(rows){
+  return `<table class="gr-kv">${rows.filter(r => r[1] !== undefined && r[1] !== null && r[1] !== '').map(r => `<tr><td>${E(r[0])}</td><td>${r[2] ? r[1] : E(r[1])}</td></tr>`).join('')}</table>`;
+}
+function neighbourList(n){
+  const by = {};
+  n.connectedEdges().forEach(e => {
+    const o = e.source().id() === n.id() ? e.target() : e.source();
+    (by[e.data('rel')] = by[e.data('rel')] || []).push({o, w:e.data('weight'), e});
+  });
+  const rels = Object.keys(RELS).filter(r => by[r]);
+  if(!rels.length) return '<div class="gr-help">No connections in this view.</div>';
+  return rels.map(r => {
+    const L = by[r].sort((a, b) => (b.w || 0) - (a.w || 0));
+    const shown = L.slice(0, 40);
+    return `<div class="gr-sec"><h4>${E(RELS[r].label)} <span class="badge badge-info">${E(L.length)}</span></h4><div class="gr-chips">${shown.map(x => {
+      const d = x.o.data();
+      return `<button type="button" class="gr-nb" data-goto="${E(d.id)}" style="border-left-color:${nodeColor(d)}"><span>${d.flagged ? '⚑ ' : ''}${E(d.label || d.id)}</span><span class="w">${(r === 'seen_with' || r === 'in_case') ? E(x.w) + '×' : E(d.group === 'device' ? d.type : d.group)}</span></button>`;
+    }).join('')}${L.length > shown.length ? `<div class="gr-key">+${E(L.length - shown.length)} more</div>` : ''}</div></div>`;
+  }).join('');
+}
+function renderPanel(n){
+  const d = n.data(), P = $('gr-panel');
+  let html = '';
+  if(d.group === 'device'){
+    const flags = (d.flags || []).map(f => `<span class="badge" style="color:${FLAG_COLORS[f.color] || '#F87171'};border:1px solid ${FLAG_COLORS[f.color] || '#F87171'}66;margin:0 4px 4px 0">case #${E(f.case_id)}${f.label ? ' — ' + E(f.label) : ''}</span>`).join('');
+    const meta = d.meta ? Object.keys(d.meta).map(k => [k, d.meta[k]]) : [];
+    html = `<div class="gr-kick">Device · ${E(d.type)}${d.focus ? ' · focus' : ''}</div>
+      <div class="gr-h1">${E(d.label)}</div><div class="gr-key">${E(d.key)}</div>
+      ${flags ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap">${flags}</div>` : ''}
+      <div class="gr-stats">
+        <div class="gr-stat"><div class="v" style="color:${riskColor(d.risk)}">${E(d.risk)}</div><div class="l">Max risk</div></div>
+        <div class="gr-stat"><div class="v">${E(d.count)}</div><div class="l">Sightings</div></div>
+      </div>
+      <div class="gr-acts">
+        <a class="gr-btn p" href="/cases?device=${encodeURIComponent(d.key)}">History</a>
+        <button type="button" class="gr-btn g" data-act="focus" data-id="${E(d.id)}">Focus here</button>
+        <button type="button" class="gr-btn" data-act="expand" data-id="${E(d.id)}">Expand</button>
+      </div>
+      <div class="gr-sec"><h4>Details</h4>${kv([['type', d.type], ['profile', d.profile], ['first seen', fmtT(d.first_seen)], ['last seen', fmtT(d.last_seen)],
+        ['sources', (d.sources || []).join(', ')], ['scan kinds', (d.kinds || []).map(k => KINDS[k] || k).join(', ')],
+        ['location', d.lat != null && d.lon != null ? Number(d.lat).toFixed(5) + ', ' + Number(d.lon).toFixed(5) : ''],
+        ['BFS level', d.level], ...meta])}</div>`;
+  } else if(d.group === 'case'){
+    html = `<div class="gr-kick">Case #${E(d.case_id)} · ${E(d.status)}</div>
+      <div class="gr-h1">${E(d.label)}</div>
+      <div class="gr-stats"><div class="gr-stat"><div class="v">${E(d.count)}</div><div class="l">Scans</div></div>
+        <div class="gr-stat"><div class="v">${E(n.degree())}</div><div class="l">Devices here</div></div></div>
+      <div class="gr-acts">
+        <a class="gr-btn p" href="/cases?case=${encodeURIComponent(d.case_id)}">Open case</a>
+        <button type="button" class="gr-btn g" data-act="case" data-id="${E(d.case_id)}">Graph this case</button>
+      </div>`;
+  } else {
+    const G = GROUPS[d.group] || {label:d.group};
+    html = `<div class="gr-kick">${E(G.label)}</div><div class="gr-h1">${E(d.label)}</div>
+      ${d.value !== d.label ? `<div class="gr-key">${E(d.value)}</div>` : ''}
+      <div class="gr-stats"><div class="gr-stat"><div class="v">${E(d.count)}</div><div class="l">Devices</div></div>
+        <div class="gr-stat"><div class="v">${E(n.degree())}</div><div class="l">In view</div></div></div>
+      <div class="gr-help">${E({ssid:'Routers / BT devices broadcasting this SSID.', net24:'IP devices inside this IPv4 /24.',
+        operator_lac:'Cell towers sharing this MCC/MNC + LAC.', org:'IP devices reporting this organisation / ASN.'}[d.group] || '')}</div>`;
+  }
+  P.innerHTML = html + neighbourList(n);
+}
+function renderOverview(err){
+  const P = $('gr-panel'), g = S.last;
+  if(!g){ P.innerHTML = `<div class="gr-kick">Overview</div><div class="gr-h1">—</div>${err ? `<div class="gr-help" style="color:var(--danger)">${E(err)}</div>` : ''}`; return; }
+  const st = g.stats, cnt = {};
+  g.nodes.forEach(n => { const k = n.data.group === 'device' ? n.data.type : n.data.group; cnt[k] = (cnt[k] || 0) + 1; });
+  const rc = {}; g.edges.forEach(e => { rc[e.data.rel] = (rc[e.data.rel] || 0) + 1; });
+  const top = g.nodes.filter(n => n.data.group === 'device').slice().sort((a, b) => (b.data.risk - a.data.risk) || (b.data.count - a.data.count)).slice(0, 8);
+  const caseName = st.case_id ? ((S.cases.find(c => c.id === st.case_id) || {}).name || ('#' + st.case_id)) : 'All cases';
+  P.innerHTML = `<div class="gr-kick">${st.mode === 'ego' ? 'Ego graph · depth ' + E(st.depth) : 'Overview'}</div>
+    <div class="gr-h1">${E(st.mode === 'ego' ? short(st.focus, 60) : caseName)}</div>
+    <div class="gr-stats">
+      <div class="gr-stat"><div class="v">${E(st.devices)}</div><div class="l">Devices${st.truncated ? ' (limited)' : ''}</div></div>
+      <div class="gr-stat"><div class="v">${E(st.edges)}</div><div class="l">Edges</div></div>
+    </div>
+    <div class="gr-sec"><h4>Node types</h4>${kv(Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).map(k => [(GROUPS[k] || {}).label || k, cnt[k]]))}</div>
+    <div class="gr-sec"><h4>Edge types</h4>${kv(Object.keys(RELS).filter(r => rc[r]).map(r => [RELS[r].label, rc[r]]))}</div>
+    ${top.length ? `<div class="gr-sec"><h4>Highest risk</h4><div class="gr-chips">${top.map(n => `<button type="button" class="gr-nb" data-goto="${E(n.data.id)}" style="border-left-color:${riskColor(n.data.risk)}"><span>${n.data.flagged ? '' : ''}${E(n.data.label)}</span><span class="w">${E(n.data.risk)}</span></button>`).join('')}</div></div>` : ''}
+    <div class="gr-help">Click a node for details. <b>Expand</b> adds its neighbours, <b>Focus here</b> rebuilds the graph around it.
+      Devices link when seen together in ≥ <b>${E(st.min_together)}</b> scans; dashed lines are shared SSID / subnet / org.</div>`;
+}
+$('gr-panel').addEventListener('click', e => {
+  const g = e.target.closest('[data-goto]');
+  if(g){ select(g.dataset.goto, true); return; }
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const id = b.dataset.id;
+  if(b.dataset.act === 'expand') expand(id);
+  else if(b.dataset.act === 'focus'){ $('gr-key').value = id; load(true); }
+  else if(b.dataset.act === 'case'){ $('gr-key').value = ''; $('gr-case').value = id; load(true); }
+});
+
+/* ── Search ── */
+function runSearch(jump){
+  const cy = S.cy; if(!cy) return;
+  const q = $('gr-q').value.trim().toLowerCase();
+  cy.batch(() => { cy.elements().removeClass('dim hl'); });
+  if(!q){ S.hits = []; S.hitIdx = -1; $('gr-hits').textContent = ''; return; }
+  const hits = cy.nodes().filter(n => String(n.data('label') || '').toLowerCase().includes(q) || n.id().toLowerCase().includes(q));
+  S.hits = hits.map(n => n.id());
+  $('gr-hits').textContent = hits.length ? `${hits.length} match${hits.length > 1 ? 'es' : ''}` : 'no match';
+  if(!hits.length) return;
+  cy.batch(() => {
+    cy.elements().addClass('dim');
+    hits.removeClass('dim').addClass('hl');
+    hits.connectedEdges().removeClass('dim');
+    hits.neighborhood('node').removeClass('dim');
+  });
+  if(jump){
+    S.hitIdx = (S.hitIdx + 1) % S.hits.length;
+    $('gr-hits').textContent = `${S.hitIdx + 1}/${hits.length}`;
+    select(S.hits[S.hitIdx], true);
+  }
+}
+let sTimer = null;
+$('gr-q').addEventListener('input', () => { clearTimeout(sTimer); S.hitIdx = -1; sTimer = setTimeout(() => runSearch(false), 150); });
+$('gr-q').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); runSearch(true); } else if(e.key === 'Escape'){ $('gr-q').value = ''; runSearch(false); } });
+
+/* ── Toolbar ── */
+$('gr-fit').addEventListener('click', () => { if(S.cy) S.cy.animate({fit:{eles:S.cy.elements(':visible'), padding:30}}, {duration:250}); });
+$('gr-relayout').addEventListener('click', () => { if(S.cy && S.cy.nodes().length) S.cy.layout(layoutOpts(S.cy.nodes().length, true)).run(); });
+function download(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function stamp(){ return new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-'); }
+$('gr-png').addEventListener('click', () => {
+  if(!S.cy || !S.cy.nodes().length) return;
+  const blob = S.cy.png({output:'blob', bg:'#080E09', full:true, scale:2, maxWidth:8000, maxHeight:8000});
+  download(blob, `signalops-graph-${stamp()}.png`);
+});
+$('gr-json').addEventListener('click', () => {
+  if(!S.cy) return;
+  const clean = d => { const o = Object.assign({}, d); delete o._lbl; return o; };
+  const out = {generated_at:new Date().toISOString(), params:readForm(), stats:S.last ? S.last.stats : null,
+    nodes:S.cy.nodes().map(n => ({data:clean(n.data()), position:n.position()})), edges:S.cy.edges().map(e => ({data:clean(e.data())}))};
+  download(new Blob([JSON.stringify(out, null, 2)], {type:'application/json'}), `signalops-graph-${stamp()}.json`);
+});
+
+/* ── Boot ── */
+buildChecks();
+fromUrl();
+loadCases().then(() => { applyWantCase(); load(false); });
+})();
+</script>
+{% endblock %}

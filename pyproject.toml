@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "signalops-sigint"
+dynamic = ["version"]
+description = "Local-first SIGINT / OSINT workbench: WiFi, cell, cameras, aircraft, satellites, vessels and RF layers on one map"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Emre Kybs" }]
+requires-python = ">=3.9"
+keywords = ["sigint", "osint", "rf", "ads-b", "ais", "cctv", "wifi", "sdr", "security-research"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Framework :: Flask",
+  "Environment :: Web Environment",
+  "Intended Audience :: Information Technology",
+  "Topic :: Security",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "flask>=3.0.0",
+  "requests>=2.31.0",
+  "python-dotenv>=1.0.0",
+  "cachetools>=5.3.0",
+  "flask-limiter>=3.5.0",
+  "sgp4>=2.22",
+  "urllib3>=2.0",
+  "reportlab>=4.0",
+  "websocket-client>=1.6",
+  "PySocks>=1.7",
+  "socksio>=1.0",
+  "google-genai>=1.0.0",
+]
+
+[project.optional-dependencies]
+server = ["gunicorn>=21.0.0"]
+
+[project.urls]
+Homepage = "https://github.com/emrekybs/signalops"
+Issues = "https://github.com/emrekybs/signalops/issues"
+
+[project.scripts]
+signalops = "signalops.cli:main"
+
+[tool.setuptools]
+packages = ["signalops", "signalops.modules"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "signalops.__version__" }
+
+[tool.setuptools.package-data]
+signalops = ["templates/*.html", "static/css/*", "static/js/*", "static/fonts/*"]
+"signalops.modules" = ["fonts/*.ttf"]

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Profiles — SignalOps{% endblock %}
+{% block extra_style %}
+.p-card{background:var(--s);border:1px solid var(--b);border-radius:8px;padding:16px;transition:border-color 0.2s}
+.p-card:hover{border-color:rgba(138, 122, 184,0.3)}
+.p-hist{font-size:10px;color:var(--pl);text-decoration:none;border:1px solid rgba(138, 122, 184,0.3);border-radius:4px;padding:2px 8px;letter-spacing:1px}
+.p-hist:hover{background:rgba(138, 122, 184,0.12)}
+#p-import{display:none;margin-bottom:16px;padding:12px 16px;border:1px solid rgba(201, 161, 90,0.3);background:rgba(201, 161, 90,0.06);border-radius:8px;font-size:11px;color:var(--td);align-items:center;gap:12px;flex-wrap:wrap}
+/* ── Responsive (mobile/tablet only; desktop >900px unchanged) ── */
+@media (max-width:900px){
+  #p-grid{grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr))!important}
+  #p-grid>div{min-width:0;overflow-wrap:anywhere}
+  .p-toolbar .btn,.p-toolbar button{min-height:36px}
+}
+@media (max-width:600px){
+  .p-toolbar #p-search{max-width:none!important;flex:1 1 100%}
+  .p-toolbar #p-type-filter{flex:1 1 100%;width:100%!important}
+  .p-toolbar button{flex:1 1 auto}
+  #p-empty{padding:48px 16px!important}
+}
+{% endblock %}
+{% block content %}
+<div class="section-hdr">Device Profiles</div>
+<div class="p-toolbar" style="display:flex;gap:12px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+  <input id="p-search" placeholder="Search profiles..." style="max-width:300px">
+  <select id="p-type-filter" style="width:140px">
+    <option value="">All Types</option>
+    <option value="router">WiFi</option>
+    <option value="camera">Camera</option>
+    <option value="cell_tower">Cell Tower</option>
+    <option value="drone">Drone</option>
+    <option value="bluetooth">Bluetooth</option>
+    <option value="iot_device">IoT</option>
+  </select>
+  <button class="btn btn-outline" id="p-export-btn" style="padding:8px 14px"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg> Export JSON</button>
+  <button id="p-clear-btn" style="background:rgba(199, 123, 123,0.1);color:var(--danger);border:1px solid rgba(199, 123, 123,0.3);border-radius:6px;padding:8px 16px;cursor:pointer;font-family:Rajdhani,sans-serif;font-size:13px;font-weight:700;letter-spacing:1px">Clear All</button>
+  <span id="p-count" style="font-size:11px;color:var(--tm)"></span>
+</div>
+<div id="p-import">
+  <span>Bu tarayıcıda eski (localStorage) profiller var: <b id="p-import-n" style="color:var(--warn)"></b></span>
+  <button class="btn btn-g" id="p-import-btn" style="padding:6px 14px"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V8M7 13l5-5 5 5M5 4h14"/></svg> Import <span id="p-import-n2"></span> browser profiles</button>
+  <span id="p-import-msg" style="color:var(--tm)"></span>
+</div>
+<div id="p-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px"></div>
+<div id="p-empty" style="text-align:center;padding:80px;color:var(--tm)">
+  <div style="font-size:40px;opacity:0.2;margin-bottom:12px"><svg class="so-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
+  <div style="font-family:'Rajdhani',sans-serif;letter-spacing:3px">No saved profiles</div>
+  <div style="font-size:11px;margin-top:8px">Save devices from the Surveillance page</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const typeColor={router:'#A78BFA',camera:'#F87171',cell_tower:'#C084FC',drone:'#FF2288',bluetooth:'#60A5FA',iot_device:'#FBBF24'};
+// Profiller sunucuda (/api/profiles). Eski localStorage 'sigint_profiles' kayıtları tek tıkla içe aktarılır.
+let PROFILES = [];      // [{dev_key, name, note, data, created_at, updated_at}]
+let loadError = '';
+
+function getLocalProfiles(){try{const v=JSON.parse(localStorage.getItem('sigint_profiles')||'[]');return Array.isArray(v)?v.filter(x=>x&&typeof x==='object'):[];}catch(e){return[];}}
+
+async function api(method, url, body){
+  const opt = {method, headers:{'Accept':'application/json'}};
+  if(body!==undefined){opt.headers['Content-Type']='application/json';opt.body=JSON.stringify(body);}
+  const r = await fetch(url, opt);
+  let j=null; try{j=await r.json();}catch(_){}
+  if(!r.ok) throw new Error((j&&j.error)||('HTTP '+r.status));
+  return j;
+}
+
+async function loadProfiles(){
+  try{ const j=await api('GET','/api/profiles'); PROFILES=j.profiles||[]; loadError=''; }
+  catch(e){ loadError=e.message; }
+  renderProfiles(); renderImport();
+}
+
+function renderImport(){
+  const n=getLocalProfiles().length;
+  const box=document.getElementById('p-import');
+  box.style.display=n?'flex':'none';
+  document.getElementById('p-import-n').textContent=n;
+  document.getElementById('p-import-n2').textContent=n;
+}
+
+async function importLocal(){
+  const btn=document.getElementById('p-import-btn'), msg=document.getElementById('p-import-msg');
+  const local=getLocalProfiles(); if(!local.length) return;
+  btn.disabled=true; let ok=0; const failed=[];
+  for(const p of local){
+    msg.textContent=`${ok+failed.length+1}/${local.length}…`;
+    try{ await api('POST','/api/profiles',{device:p}); ok++; }catch(e){ failed.push(p); }
+  }
+  try{
+    if(failed.length) localStorage.setItem('sigint_profiles',JSON.stringify(failed));
+    else localStorage.removeItem('sigint_profiles');
+  }catch(e){}
+  btn.disabled=false;
+  msg.textContent=`${ok} imported`+(failed.length?` · ${failed.length} failed (kept in browser)`:'');
+  await loadProfiles();
+}
+
+async function clearAll(){
+  if(!PROFILES.length||!confirm(`Delete all ${PROFILES.length} profiles?`))return;
+  for(const p of PROFILES.slice()){ try{ await api('DELETE','/api/profiles?key='+encodeURIComponent(p.dev_key)); }catch(e){} }
+  loadProfiles();
+}
+
+function exportProfiles(){
+  if(!PROFILES.length)return;
+  const blob=new Blob([JSON.stringify(PROFILES,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`signalops_profiles_${Date.now()}.json`;a.click();
+}
+
+let shown=[];
+function renderProfiles(){
+  const query=document.getElementById('p-search').value.toLowerCase();
+  const typeFilter=document.getElementById('p-type-filter').value;
+  shown=PROFILES.filter(p=>{
+    const d=p.data||{};
+    if(typeFilter&&d.type!==typeFilter)return false;
+    if(query&&!JSON.stringify(p).toLowerCase().includes(query))return false;
+    return true;
+  });
+  document.getElementById('p-count').textContent=loadError?`${loadError}`:`${shown.length} profiles`;
+  if(!shown.length){
+    document.getElementById('p-empty').style.display='block';
+    document.getElementById('p-grid').innerHTML='';return;
+  }
+  document.getElementById('p-empty').style.display='none';
+  document.getElementById('p-grid').innerHTML=shown.map((pr,i)=>{
+    const p=pr.data||{};
+    const title=pr.name||p.ssid||p.ip||p.cell_id||p.callsign||p.icao||'Unknown';
+    return `
+    <div class="p-card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;gap:8px">
+        <span style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--t);font-size:14px;min-width:0;overflow-wrap:anywhere">${escapeHtml(title)}</span>
+        <span style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+          <a class="p-hist" href="/cases?device=${encodeURIComponent(pr.dev_key)}" title="Sightings & correlation">History</a>
+          <button data-del="${i}" title="Delete profile" style="background:none;border:none;color:var(--tm);cursor:pointer;font-size:14px">✕</button>
+        </span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--td)">
+        <span>Type: <span style="color:${typeColor[p.type]||'#9896AE'}">${escapeHtml(p.type||'—')}</span></span>
+        ${pr.name&&p.ssid&&pr.name!==p.ssid?`<span>SSID: ${escapeHtml(p.ssid)}</span>`:''}
+        ${p.bssid?`<span>BSSID: ${escapeHtml(p.bssid)}</span>`:''}
+        ${p.ip?`<span>IP: ${escapeHtml(p.ip)}</span>`:''}
+        ${p.country?`<span>Country: ${escapeHtml(p.country)}</span>`:''}
+        ${p.source?`<span>Source: ${escapeHtml(p.source)}</span>`:''}
+        ${p.risk!=null&&isFinite(Number(p.risk))?`<span>Risk: <span style="color:${Number(p.risk)>=70?'#F87171':Number(p.risk)>=40?'#FBBF24':'#4ADE80'}">${Number(p.risk)}/100</span></span>`:''}
+        ${pr.note?`<span style="color:var(--t);white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(pr.note.length>200?pr.note.slice(0,200)+'…':pr.note)}</span>`:''}
+      </div>
+      <div style="margin-top:10px;font-size:10px;color:var(--tm)">${escapeHtml(new Date((pr.created_at||0)*1000).toLocaleString())}</div>
+    </div>`;}).join('');
+}
+
+async function removeProfile(i){
+  const p=shown[i]; if(!p)return;
+  try{ await api('DELETE','/api/profiles?key='+encodeURIComponent(p.dev_key)); }catch(e){ alert('Delete failed: '+e.message); }
+  loadProfiles();
+}
+
+document.getElementById('p-grid').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-del]'); if(b) removeProfile(parseInt(b.dataset.del,10));
+});
+document.getElementById('p-search').addEventListener('input',renderProfiles);
+document.getElementById('p-type-filter').addEventListener('change',renderProfiles);
+document.getElementById('p-export-btn').addEventListener('click',exportProfiles);
+document.getElementById('p-clear-btn').addEventListener('click',clearAll);
+document.getElementById('p-import-btn').addEventListener('click',importLocal);
+loadProfiles();
+</script>
+{% endblock %}
