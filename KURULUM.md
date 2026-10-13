@@ -6,7 +6,7 @@ SignalOps **yerel** çalışacak şekilde tasarlandı: varsayılan olarak sadece
 ## 0. pip ile (en kolayı)
 
 ```bash
-pip install signalops-sigint      # PyPI'da "signalops" adı başka bir projede, paket adı bu
+pipx install signalops-sigint     # Debian/Ubuntu/Kali'de pipx kullan (sudo apt install pipx)
 signalops                         # → http://localhost:8080
 signalops --port 9090 --home ~/sigops   # farklı port / veri klasörü
 ```

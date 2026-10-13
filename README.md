@@ -15,6 +15,8 @@ SignalOps puts what is transmitting around a location on one map: Wi-Fi and Blue
 - **Space and sea:** satellite passes with their downlink frequencies (SatNOGS), space weather (NOAA), and AIS vessels.
 - **Investigation:** cases, change detection between scans, a correlation graph, a timeline replay, area monitoring with webhook alerts, a watchlist, and PDF / KML / GeoJSON / CSV export.
 
+![SIGINT map](docs/screenshots/sigint.png)
+
 ![ADS-B](docs/screenshots/adsb.png)
 
 ![RF layers](docs/screenshots/rf.png)
@@ -24,9 +26,11 @@ SignalOps puts what is transmitting around a location on one map: Wi-Fi and Blue
 ## Install
 
 ```bash
-pip install signalops-sigint
+pipx install signalops-sigint     # or: pip install signalops-sigint (inside a venv)
 signalops
 ```
+
+On Debian / Ubuntu / Kali, plain `pip install` outside a virtualenv is blocked (PEP 668), so use `pipx` (`sudo apt install pipx`).
 
 The app opens at **http://localhost:8080**. Add whichever API keys you have under **Settings**. Every source is optional, and the free ones (OSM, adsb.fi, CelesTrak, SondeHub, Meshtastic, NOAA, public cameras) work without a key.
 
